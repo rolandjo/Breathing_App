@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Breathing Timer</title>
+    <!-- Content Security Policy to prevent XSS and malicious injections -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; script-src 'self' https://cdn.jsdelivr.net; media-src 'self';">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+</head>
+<body class="dark-mode">
+    <!-- Navbar / Header -->
+    <nav class="navbar custom-navbar fixed-top">
+        <div class="container-fluid px-4 py-3 d-flex justify-content-between align-items-center">
+            <h1 class="navbar-brand m-0 fs-4 fw-bold" data-lang-key="title">Breathing Timer</h1>
+            <div class="d-flex gap-3 align-items-center">
+                <button class="btn btn-icon fw-bold" id="language-toggle" title="Toggle Language">EN</button>
+                <div class="custom-control custom-switch d-flex align-items-center">
+                    <input type="checkbox" class="custom-control-input" id="toggle-mode" checked>
+                    <label class="custom-control-label ms-2 small" for="toggle-mode"><i class="bi bi-moon-stars-fill"></i></label>
+                </div>
+                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#settingsOffcanvas" aria-controls="settingsOffcanvas">
+                    <i class="bi bi-sliders2 fs-4"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Breathing Area -->
+    <main class="timer-main-container d-flex flex-column justify-content-center align-items-center">
+        
+        <!-- Text Prompt -->
+        <div id="guided-prompt" class="guided-prompt mb-4 text-center fs-2 fw-light" data-lang-key="ready">Ready to breathe</div>
+        
+        <!-- Canvas Visualizer -->
+        <div class="visualizer-wrapper mb-5 position-relative d-flex justify-content-center align-items-center">
+            <canvas id="breathing-canvas"></canvas>
+            <div id="phase-time" class="phase-time m-0 position-absolute top-50 start-50 translate-middle"></div>
+        </div>
+        
+        <!-- Time and Cycles Display -->
+        <div class="time-cycles-container mb-4 text-center">
+            <span id="remaining-cycles" class="badge rounded-pill cycle-badge px-3 py-2 fs-6 mb-2" data-lang-key="remainingCycles">Remaining Cycles: 0</span>
+            <div id="total-time" class="text-muted small fw-medium mt-1" data-lang-key="totalTime">Total Time: 0 min 0 sec</div>
+        </div>
+
+        <!-- Controls -->
+        <div class="main-controls d-flex gap-3 mt-2">
+            <button id="start" class="btn btn-primary btn-lg rounded-pill px-5 shadow-lg action-btn" data-lang-key="start">Start</button>
+            <button id="pause" class="btn btn-warning btn-lg rounded-pill px-4 shadow-lg action-btn d-none" data-lang-key="pause">Pause</button>
+            <button id="stop" class="btn btn-danger btn-lg rounded-pill px-4 shadow-lg action-btn d-none" data-lang-key="stop">Stop</button>
+        </div>
+    </main>
+
+    <!-- Settings Offcanvas -->
+    <div class="offcanvas offcanvas-end settings-panel" tabindex="-1" id="settingsOffcanvas" aria-labelledby="settingsOffcanvasLabel">
+        <div class="offcanvas-header border-bottom border-secondary border-opacity-25">
+            <h5 class="offcanvas-title fw-bold" id="settingsOffcanvasLabel"><i class="bi bi-gear-fill me-2"></i>Settings</h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body p-4 custom-scrollbar">
+            <!-- Audio Settings -->
+            <div class="settings-section mb-4">
+                <h6 class="fw-bold mb-3 text-uppercase small text-muted">Audio</h6>
+                <div class="form-group mb-3">
+                    <label for="volume-control" class="form-label d-flex justify-content-between mb-2">
+                        <span data-lang-key="volumeControl">Volume</span>
+                        <i class="bi bi-volume-up"></i>
+                    </label>
+                    <input type="range" id="volume-control" class="form-range custom-range" min="0" max="1" step="0.1" value="0.5">
+                </div>
+            </div>
+            
+            <!-- Breathing Pattern Settings -->
+            <div class="settings-section mb-4">
+                <h6 class="fw-bold mb-3 text-uppercase small text-muted d-flex justify-content-between align-items-center">
+                    Pattern
+                    <button id="info-button" class="btn btn-sm btn-link p-0 text-decoration-none" data-bs-toggle="modal" data-bs-target="#infoModal">
+                        <i class="bi bi-info-circle"></i> Guide
+                    </button>
+                </h6>
+                <div class="form-group mb-3">
+                    <label for="preset-select" class="form-label small" data-lang-key="choosePreset">Choose a preset:</label>
+                    <select id="preset-select" class="form-select shadow-sm custom-select">
+                        <option value="custom" data-lang-key="custom">Custom</option>
+                        <option value="box" data-lang-key="box">Box Breathing (4-4-4-4)</option>
+                        <option value="relaxing" data-lang-key="relaxing">Relaxing Breath (4-7-8)</option>
+                        <option value="equal" data-lang-key="equal">Equal Breathing (4-4)</option>
+                        <option value="wim_hof" data-lang-key="wim_hof">WHM Breathing</option>
+                    </select>
+                </div>
+                
+                <div class="form-group mb-4">
+                    <label id="cyclesLabel" for="cycles" class="form-label small" data-lang-key="cycles">Number of Cycles:</label>
+                    <input type="number" id="cycles" class="form-control shadow-sm custom-input" value="3" min="1" max="100">
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label for="inhale" class="form-label small" data-lang-key="inhale">Inhale (s)</label>
+                        <input type="number" id="inhale" class="form-control shadow-sm custom-input" value="4" min="1" max="20">
+                    </div>
+                    <div class="col-6">
+                        <label for="pause1" class="form-label small" data-lang-key="pause1">Hold (s)</label>
+                        <input type="number" id="pause1" class="form-control shadow-sm custom-input" value="4" min="0" max="20">
+                    </div>
+                    <div class="col-6">
+                        <label for="exhale" class="form-label small" data-lang-key="exhale">Exhale (s)</label>
+                        <input type="number" id="exhale" class="form-control shadow-sm custom-input" value="4" min="1" max="20">
+                    </div>
+                    <div class="col-6">
+                        <label for="pause2" class="form-label small" data-lang-key="pause2">Hold (s)</label>
+                        <input type="number" id="pause2" class="form-control shadow-sm custom-input" value="4" min="0" max="20">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wim Hof Extra Fields -->
+            <div id="wim-hof-extra-fields" class="settings-section mb-4 d-none p-3 rounded glass-panel">
+                <h6 class="fw-bold mb-3 small">WHM Settings</h6>
+                <div class="row g-3">
+                    <div class="col-6 form-group">
+                        <label for="whmRounds" class="form-label small" data-lang-key="whmRounds">Total WHM Rounds</label>
+                        <input type="number" id="whmRounds" class="form-control form-control-sm custom-input" value="6" min="1" max="20">
+                    </div>
+                    <div class="col-6 form-group">
+                        <label for="whmIncrease" class="form-label small" data-lang-key="whmIncrease">Hold Increase Time (s)</label>
+                        <input type="number" id="whmIncrease" class="form-control form-control-sm custom-input" value="10" min="0" max="60">
+                    </div>
+                    <div class="col-12 form-group">
+                        <label for="hold" class="form-label small" data-lang-key="hold">Hold after exhale (s)</label>
+                        <input type="number" id="hold" class="form-control form-control-sm custom-input" value="20" min="1" max="180">
+                    </div>
+                    <div class="col-12 form-group">
+                        <label for="finalPause" class="form-label small" data-lang-key="finalPause">Final Pause</label>
+                        <input type="number" id="finalPause" class="form-control form-control-sm custom-input" value="1" min="1" max="60">
+                    </div>
+                    <div class="col-12 form-group">
+                        <label for="finalInhale" class="form-label small" data-lang-key="finalInhale">Final Inhale & Hold (s)</label>
+                        <input type="number" id="finalInhale" class="form-control form-control-sm custom-input" value="15" min="1" max="60">
+                    </div>
+                    <div class="col-12 form-group">
+                        <label for="finalPause2" class="form-label small" data-lang-key="finalPause2">Last exhale</label>
+                        <input type="number" id="finalPause2" class="form-control form-control-sm custom-input" value="5" min="1" max="60">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Modal -->
+    <div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="infoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content glass-modal border-0 shadow-lg">
+                <div class="modal-header border-bottom border-secondary border-opacity-25">
+                    <h5 class="modal-title fw-bold" id="infoModalLabel" data-lang-key="presetInfo">Breathing Patterns Guide</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="this.blur()"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="accordion accordion-flush custom-accordion" id="breathingPatterns">
+                        <!-- Box Breathing -->
+                        <div class="accordion-item bg-transparent border-bottom border-secondary border-opacity-25">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button bg-transparent fw-bold shadow-none" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#boxBreathing">
+                                    <span data-lang-key="boxTitle">Box Breathing (4-4-4-4)</span>
+                                </button>
+                            </h2>
+                            <div id="boxBreathing" class="accordion-collapse collapse show"
+                                data-bs-parent="#breathingPatterns">
+                                <div class="accordion-body text-opacity-75" data-lang-key="boxDescription">
+                                    Box breathing, also known as square breathing, is a technique used by Navy SEALs,
+                                    athletes, and stress management practitioners to calm the mind and reduce stress.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Relaxing Breath -->
+                        <div class="accordion-item bg-transparent border-bottom border-secondary border-opacity-25">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed bg-transparent fw-bold shadow-none" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#relaxingBreath">
+                                    <span data-lang-key="relaxingTitle">Relaxing Breath (4-7-8)</span>
+                                </button>
+                            </h2>
+                            <div id="relaxingBreath" class="accordion-collapse collapse"
+                                data-bs-parent="#breathingPatterns">
+                                <div class="accordion-body text-opacity-75" data-lang-key="relaxingDescription">
+                                    The 4-7-8 breathing technique, developed by Dr. Andrew Weil, acts as a natural
+                                    tranquilizer for the nervous system, helping to induce sleep.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Equal Breathing -->
+                        <div class="accordion-item bg-transparent border-bottom border-secondary border-opacity-25">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed bg-transparent fw-bold shadow-none" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#equalBreathing">
+                                    <span data-lang-key="equalTitle">Equal Breathing (4-4)</span>
+                                </button>
+                            </h2>
+                            <div id="equalBreathing" class="accordion-collapse collapse"
+                                data-bs-parent="#breathingPatterns">
+                                <div class="accordion-body text-opacity-75" data-lang-key="equalDescription">
+                                    Equal breathing, or Sama Vritti in Sanskrit, is a simple yet powerful technique that
+                                    focuses on making inhales and exhales the same length to balance the body.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Wim Hof Method -->
+                        <div class="accordion-item bg-transparent border-0">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed bg-transparent fw-bold shadow-none" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#wimHof">
+                                    <span data-lang-key="wimHofTitle">WHM Breathing</span>
+                                </button>
+                            </h2>
+                            <div id="wimHof" class="accordion-collapse collapse" data-bs-parent="#breathingPatterns">
+                                <div class="accordion-body text-opacity-75" data-lang-key="wimHofDescription">
+                                    The Wim Hof Method combines deep breathing cycles with breath holds. It is known to increase energy, reduce stress, and improve immune response.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal"
+                        data-lang-key="close" onclick="this.blur()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

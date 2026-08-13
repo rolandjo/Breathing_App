@@ -1,0 +1,309 @@
+/* Import Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* CSS Variables for Theming */
+:root {
+    --font-family: 'Inter', sans-serif;
+    
+    /* Light Theme Base Colors */
+    --bg-gradient: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+    --text-primary: #0f172a;
+    --text-muted: #475569;
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(0, 0, 0, 0.1);
+    --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.05);
+    
+    /* Orb Colors (Phase specific) */
+    --orb-color-inhale: #4facfe;
+    --orb-color-hold: #a18cd1;
+    --orb-color-exhale: #fa709a;
+    --orb-color-idle: #e0c3fc;
+
+    --btn-primary: #4facfe;
+    --btn-primary-hover: #00f2fe;
+    
+    --nav-bg: rgba(255, 255, 255, 0.8);
+}
+
+body.dark-mode {
+    /* Dark Theme Base Colors */
+    --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+    --glass-bg: rgba(20, 20, 30, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    
+    /* Orb Colors */
+    --orb-color-idle: #5e60ce;
+    
+    --nav-bg: rgba(20, 20, 30, 0.8);
+}
+
+/* Global Styles */
+body {
+    font-family: var(--font-family);
+    background: var(--bg-gradient);
+    color: var(--text-primary);
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+    transition: background 0.5s ease, color 0.5s ease;
+}
+
+/* Navbar */
+.custom-navbar {
+    background: var(--nav-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--glass-border);
+    transition: background 0.5s ease;
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.btn-icon:hover {
+    transform: scale(1.1);
+    opacity: 0.8;
+}
+
+/* Custom Switch for Dark Mode */
+.custom-switch {
+    padding-left: 2.5rem;
+    position: relative;
+}
+
+.custom-control-input {
+    position: absolute;
+    z-index: -1;
+    opacity: 0;
+}
+
+.custom-control-label {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+.custom-control-label::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: -2.5rem;
+    width: 2rem;
+    height: 1.1rem;
+    background-color: var(--glass-border);
+    border-radius: 1rem;
+    transition: background-color 0.2s ease;
+    border: 1px solid var(--text-muted);
+}
+
+.custom-control-label::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: -2.35rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    background-color: var(--text-primary);
+    border-radius: 50%;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.custom-control-input:checked ~ .custom-control-label::before {
+    background-color: var(--btn-primary);
+    border-color: var(--btn-primary);
+}
+
+.custom-control-input:checked ~ .custom-control-label::after {
+    transform: translate(0.9rem, -50%);
+    background-color: #fff;
+}
+
+/* Main Container */
+.timer-main-container {
+    min-height: 100vh;
+    padding-top: 80px; /* Space for navbar */
+    padding-bottom: 20px;
+}
+
+/* Guided Prompt */
+.guided-prompt {
+    min-height: 3rem;
+    transition: opacity 0.5s ease;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Visualizer (The Orb) */
+.visualizer-wrapper {
+    width: 300px;
+    height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#breathing-canvas {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.2));
+}
+
+.phase-time {
+    font-size: 3.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-shadow: 0 2px 10px rgba(255,255,255,0.5);
+    z-index: 3;
+}
+body.dark-mode .phase-time {
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+/* Cycle Badge */
+.cycle-badge {
+    background: var(--glass-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(5px);
+    font-weight: 500;
+}
+
+/* Glass Panels & Modals */
+.settings-panel, .glass-panel, .glass-modal {
+    background: var(--glass-bg);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-left: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    box-shadow: var(--glass-shadow);
+}
+
+.offcanvas-header, .modal-header, .modal-footer {
+    border-color: var(--glass-border) !important;
+}
+
+.btn-close {
+    filter: invert(0);
+}
+body.dark-mode .btn-close {
+    filter: invert(1);
+}
+
+/* Form Controls */
+.custom-input, .custom-select {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+}
+.custom-input:focus, .custom-select:focus {
+    background: rgba(255,255,255,0.2);
+    color: var(--text-primary);
+    border-color: var(--orb-color-inhale);
+    box-shadow: 0 0 0 0.25rem rgba(79, 172, 254, 0.25);
+}
+body.dark-mode .custom-input, body.dark-mode .custom-select {
+    background: rgba(0,0,0,0.2);
+}
+body.dark-mode .custom-input:focus, body.dark-mode .custom-select:focus {
+    background: rgba(0,0,0,0.3);
+}
+body.dark-mode .custom-select option {
+    background: #2d3748;
+    color: #fff;
+}
+
+/* Range Input styling */
+.custom-range {
+    -webkit-appearance: none;
+    width: 100%;
+    background: transparent;
+}
+.custom-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: var(--btn-primary);
+    cursor: pointer;
+    margin-top: -6px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+}
+.custom-range::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: var(--glass-border);
+    border-radius: 2px;
+}
+
+/* Accordion Customization */
+.custom-accordion .accordion-button {
+    color: var(--text-primary);
+}
+.custom-accordion .accordion-button:not(.collapsed) {
+    color: var(--orb-color-inhale);
+    background-color: transparent;
+    box-shadow: none;
+}
+.custom-accordion .accordion-item {
+    color: var(--text-muted);
+}
+.custom-accordion .accordion-body {
+    color: var(--text-primary);
+}
+
+/* Action Buttons */
+.action-btn {
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+    border: none;
+    font-weight: 600;
+}
+.action-btn:active {
+    transform: scale(0.95);
+}
+.btn-primary.action-btn {
+    background: linear-gradient(135deg, var(--btn-primary) 0%, var(--btn-primary-hover) 100%);
+    color: white;
+}
+.btn-primary.action-btn:hover {
+    box-shadow: 0 10px 20px rgba(79, 172, 254, 0.4) !important;
+}
+
+/* Responsive Custom Scrollbar for Settings */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--glass-border);
+    border-radius: 10px;
+}
+
+/* Responsive Design Tweaks */
+@media (max-width: 576px) {
+    .visualizer-wrapper {
+        width: 250px;
+        height: 250px;
+    }
+    .phase-time {
+        font-size: 3rem;
+    }
+    .main-controls .btn {
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+    }
+    .guided-prompt {
+        font-size: 1.75rem !important;
+    }
+}
