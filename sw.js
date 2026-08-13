@@ -1,23 +1,30 @@
-const CACHE_NAME = 'breathing-timer-v1';
+const CACHE_NAME = 'breathing-timer-v2';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './script.js',
   './manifest.json',
+  './Favicon.ico',
+  './vendor/bootstrap/bootstrap.min.css',
+  './vendor/bootstrap/bootstrap.bundle.min.js',
+  './vendor/bootstrap-icons/bootstrap-icons.min.css',
+  './vendor/bootstrap-icons/fonts/bootstrap-icons.woff',
+  './vendor/bootstrap-icons/fonts/bootstrap-icons.woff2',
   './tibetan-singing-bowl-54400.mp3'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache);
-      })
+      .then(cache => cache.addAll(urlsToCache))
+      .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -40,6 +47,6 @@ self.addEventListener('activate', event => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });

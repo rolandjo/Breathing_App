@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRunning = false;
     let isPaused = false;
     let currentLanguage = 'en';
+    let sessionCompleted = false;
 
     // Animation Loop Variables
     let animationFrameId = null;
@@ -86,7 +87,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ready: 'Ready to breathe',
             breatheIn: 'Breathe in...',
             holdBreath: 'Hold...',
-            breatheOut: 'Breathe out...'
+            breatheOut: 'Breathe out...',
+            complete: 'Session complete'
         },
         es: {
             title: 'Temporizador de Respiración',
@@ -119,7 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ready: 'Listo para respirar',
             breatheIn: 'Inhala...',
             holdBreath: 'Mantén...',
-            breatheOut: 'Exhala...'
+            breatheOut: 'Exhala...',
+            complete: 'Sesión completada'
         },
         fr: {
             title: 'Minuteur de Respiration',
@@ -152,7 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ready: 'Prêt à respirer',
             breatheIn: 'Inspirez...',
             holdBreath: 'Maintenez...',
-            breatheOut: 'Expirez...'
+            breatheOut: 'Expirez...',
+            complete: 'Session terminée'
         }
     };
 
@@ -354,6 +358,8 @@ document.addEventListener('DOMContentLoaded', () => {
              processStandardPhase(time);
         }
 
+        if (isRunning) updateTotalTime(time);
+
         lastTime = time;
         animationFrameId = requestAnimationFrame(renderLoop);
     }
@@ -408,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.guidedPrompt.textContent = translations[currentLanguage][whmSteps[0].textKey];
                     return;
                 } else {
-                    stop();
+                    finishSession();
                     return;
                 }
             }
@@ -428,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setupWimHofSteps() {
         whmSteps = [
-            { textKey: 'holdBreath', text: 'Hold', colorKey: 'hold', duration: () => parseInt(elements.holdInput.value) },
+            { textKey: 'holdBreath', text: 'Hold', colorKey: 'hold', duration: () => originalWhmHold + currentWhmRound * parseInt(elements.whmIncreaseInput.value) },
             { textKey: 'holdBreath', text: 'Final Pause', colorKey: 'idle', duration: () => parseInt(elements.finalPauseInput.value) },
             { textKey: 'breatheIn', text: 'Inhale and Hold', colorKey: 'inhale', duration: () => parseInt(elements.finalInhaleInput.value) },
             { textKey: 'holdBreath', text: 'Final Pause 2', colorKey: 'idle', duration: () => parseInt(elements.finalPause2Input.value) }
@@ -438,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function processWimHofPhase(time) {
         const step = whmSteps[wimHofStepIndex];
         if (!step) {
-             stop();
+             finishSession();
              return;
         }
 
@@ -459,13 +465,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (wimHofStepIndex >= whmSteps.length) {
                 currentWhmRound++;
                 if (currentWhmRound >= totalWhmRounds) {
-                    stop();
+                    finishSession();
                 } else {
-                    // Next Round! Increase hold time
-                    const increase = parseInt(elements.whmIncreaseInput.value);
-                    elements.holdInput.value = parseInt(elements.holdInput.value) + increase;
-                    savePreferences();
-                    
                     // Reset to standard breathing loop
                     isWimHof = false;
                     currentCycle = 0;
@@ -505,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Hide settings offcanvas if open
         const offcanvasElement = document.getElementById('settingsOffcanvas');
         if (offcanvasElement) {
-            const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement);
+            const bsOffcanvas = window.bootstrap?.Offcanvas.getInstance(offcanvasElement);
             if (bsOffcanvas) {
                 bsOffcanvas.hide();
             }
@@ -517,6 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isRunning = true;
         isPaused = false;
         isWimHof = false;
+        sessionCompleted = false;
         currentStep = 0;
         currentCycle = 0;
         totalCycles = parseInt(elements.cyclesInput.value);
@@ -551,30 +553,40 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTime = stepStartTime;
     }
 
+    function restoreIdleControls() {
+        elements.startButton.classList.remove('d-none');
+        elements.stopButton.classList.add('d-none');
+        elements.pauseButton.classList.add('d-none');
+        elements.pauseButton.textContent = translations[currentLanguage]?.pause || 'Pause';
+        elements.pauseButton.classList.remove('btn-primary');
+        elements.pauseButton.classList.add('btn-warning');
+    }
+
     function stop() {
         if (!isRunning) return;
 
         isRunning = false;
         isPaused = false;
         isWimHof = false;
-
-        // Restore original WHM hold time if it was modified
-        if (elements.presetSelect.value === 'wim_hof' && originalWhmHold > 0) {
-            elements.holdInput.value = originalWhmHold;
-            savePreferences();
-        }
-
-        elements.startButton.classList.remove('d-none');
-        elements.stopButton.classList.add('d-none');
-        elements.pauseButton.classList.add('d-none');
-        
-        elements.pauseButton.textContent = translations[currentLanguage]?.pause || 'Pause';
-        elements.pauseButton.classList.remove('btn-primary');
-        elements.pauseButton.classList.add('btn-warning');
+        sessionCompleted = false;
+        restoreIdleControls();
 
         updateRemainingCycles();
         updateTotalTime();
         resetDisplay();
+    }
+
+    function finishSession() {
+        isRunning = false;
+        isPaused = false;
+        isWimHof = false;
+        sessionCompleted = true;
+        restoreIdleControls();
+        elements.guidedPrompt.textContent = translations[currentLanguage]?.complete || 'Session complete';
+        elements.phaseTime.textContent = '';
+        updateRemainingCycles();
+        updateTimeDisplay(0, true);
+        drawFrame(null, 0, performance.now());
     }
 
     function pause() {
@@ -599,77 +611,90 @@ document.addEventListener('DOMContentLoaded', () => {
         drawFrame(null, 0, performance.now());
     }
 
-    function updateTimeDisplay(totalSeconds) {
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        const prefix = isRunning && (currentCycle > 0 || currentWhmRound > 0 || isWimHof) 
+    function updateTimeDisplay(totalSeconds, forceRemaining = false) {
+        const roundedSeconds = Math.max(0, Math.ceil(totalSeconds));
+        const minutes = Math.floor(roundedSeconds / 60);
+        const seconds = roundedSeconds % 60;
+        const prefix = (isRunning || forceRemaining)
             ? (currentLanguage === 'en' ? 'Time Left' : (currentLanguage === 'es' ? 'Tiempo Restante' : 'Temps Restant'))
             : (translations[currentLanguage]?.totalTime?.split(':')[0] || 'Total Time');
-        elements.totalTimeDisplay.textContent = `${prefix}: ${minutes} min ${seconds} sec`;
+        const nextText = `${prefix}: ${minutes} min ${seconds} sec`;
+        if (elements.totalTimeDisplay.textContent !== nextText) {
+            elements.totalTimeDisplay.textContent = nextText;
+        }
     }
 
-    function updateTotalTime() {
-        if (elements.presetSelect.value !== 'wim_hof') {
-            const remainingCycles = Math.max(0, parseInt(elements.cyclesInput.value) - currentCycle);
-            const totalSeconds = (
-                parseInt(elements.inhaleInput.value) +
-                parseInt(elements.pause1Input.value) +
-                parseInt(elements.exhaleInput.value) +
-                parseInt(elements.pause2Input.value)
-            ) * remainingCycles;
-            updateTimeDisplay(totalSeconds);
+    function durationOf(stepList, startIndex = 0) {
+        return stepList.slice(startIndex).reduce((sum, step) => sum + step.duration(), 0);
+    }
+
+    function remainingInCurrentStep(time, step) {
+        if (!isRunning || !step) return step?.duration() || 0;
+        const elapsed = Math.max(0, (time - stepStartTime) / 1000);
+        return Math.max(0, step.duration() - elapsed);
+    }
+
+    function remainingBreathingTime(time) {
+        const cycleDuration = durationOf(steps);
+        if (!isRunning) return cycleDuration * parseInt(elements.cyclesInput.value);
+
+        const currentStepRemaining = remainingInCurrentStep(time, steps[currentStep]);
+        const laterSteps = durationOf(steps, currentStep + 1);
+        const laterCycles = Math.max(0, totalCycles - currentCycle - 1) * cycleDuration;
+        return currentStepRemaining + laterSteps + laterCycles;
+    }
+
+    function updateTotalTime(time = performance.now()) {
+        if (sessionCompleted) {
+            updateTimeDisplay(0, true);
             return;
         }
 
-        // --- WIM HOF TOTAL TIME ---
+        if (elements.presetSelect.value !== 'wim_hof') {
+            updateTimeDisplay(remainingBreathingTime(time));
+            return;
+        }
+
         let totalSeconds = 0;
         const totalRounds = parseInt(elements.whmRoundsInput.value);
-        const currentR = isRunning ? currentWhmRound : 0;
-        
-        // 1. Time remaining in CURRENT round's breathing phase
-        if (!isWimHof) {
-            const remainingBreaths = Math.max(0, parseInt(elements.cyclesInput.value) - currentCycle);
-            totalSeconds += remainingBreaths * (
-                parseInt(elements.inhaleInput.value) +
-                parseInt(elements.pause1Input.value) +
-                parseInt(elements.exhaleInput.value) +
-                parseInt(elements.pause2Input.value)
-            );
-        }
-
-        // 2. Time remaining in CURRENT round's WHM phase
-        const baseHold = parseInt(elements.holdInput.value); 
-        const whmStaticTime = parseInt(elements.finalPauseInput.value) + 
-                              parseInt(elements.finalInhaleInput.value) + 
-                              parseInt(elements.finalPause2Input.value);
-                              
-        if (!isWimHof) {
-            totalSeconds += baseHold + whmStaticTime;
-        } else {
-            for (let i = wimHofStepIndex; i < whmSteps.length; i++) {
-                totalSeconds += whmSteps[i].duration();
-            }
-        }
-
-        // 3. Time for all SUBSEQUENT rounds
+        const roundIndex = isRunning ? currentWhmRound : 0;
+        const baseHold = isRunning && originalWhmHold > 0
+            ? originalWhmHold
+            : parseInt(elements.holdInput.value);
         const increase = parseInt(elements.whmIncreaseInput.value);
-        const breathsTime = parseInt(elements.cyclesInput.value) * (
-            parseInt(elements.inhaleInput.value) +
-            parseInt(elements.pause1Input.value) +
-            parseInt(elements.exhaleInput.value) +
-            parseInt(elements.pause2Input.value)
-        );
+        const staticTime = parseInt(elements.finalPauseInput.value)
+            + parseInt(elements.finalInhaleInput.value)
+            + parseInt(elements.finalPause2Input.value);
+        const breathsPerRound = durationOf(steps) * parseInt(elements.cyclesInput.value);
 
-        for (let r = currentR + 1; r < totalRounds; r++) {
-            totalSeconds += breathsTime;
-            // holdInput is physically updated, so baseHold represents the current round's hold length
-            totalSeconds += (baseHold + (r - currentR) * increase) + whmStaticTime;
+        if (!isRunning) {
+            for (let round = 0; round < totalRounds; round++) {
+                totalSeconds += breathsPerRound + baseHold + round * increase + staticTime;
+            }
+        } else if (!isWimHof) {
+            totalSeconds += remainingBreathingTime(time) + baseHold + roundIndex * increase + staticTime;
+        } else {
+            totalSeconds += remainingInCurrentStep(time, whmSteps[wimHofStepIndex]);
+            totalSeconds += durationOf(whmSteps, wimHofStepIndex + 1);
+        }
+
+        if (isRunning) {
+            for (let round = roundIndex + 1; round < totalRounds; round++) {
+                totalSeconds += breathsPerRound + baseHold + round * increase + staticTime;
+            }
         }
 
         updateTimeDisplay(totalSeconds);
     }
 
     function updateRemainingCycles() {
+        if (sessionCompleted) {
+            const label = elements.presetSelect.value === 'wim_hof'
+                ? (currentLanguage === 'en' ? 'Rounds Remaining' : (currentLanguage === 'es' ? 'Rondas Restantes' : 'Cycles Restants'))
+                : (translations[currentLanguage]?.remainingCycles?.split(':')[0] || 'Remaining Cycles');
+            elements.remainingCyclesDisplay.textContent = `${label}: 0`;
+            return;
+        }
         if (elements.presetSelect.value === 'wim_hof') {
             const roundText = currentLanguage === 'en' ? 'Round' : (currentLanguage === 'es' ? 'Ronda' : 'Cycle');
             const currentR = isRunning ? currentWhmRound + 1 : 1;
@@ -711,12 +736,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         updateTotalTime();
         updateRemainingCycles();
-        if(!isRunning) resetDisplay();
+        if (sessionCompleted) {
+            elements.guidedPrompt.textContent = translations[currentLanguage]?.complete || 'Session complete';
+        } else if (!isRunning) {
+            resetDisplay();
+        }
     }
 
     // Local storage functions
     function savePreferences() {
         const preferences = {
+            preset: elements.presetSelect.value,
             inhale: elements.inhaleInput.value,
             pause1: elements.pause1Input.value,
             exhale: elements.exhaleInput.value,
@@ -735,24 +765,46 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('breathingTimerPreferences', JSON.stringify(preferences));
     }
 
-    function loadPreferences() {
-        const preferences = JSON.parse(localStorage.getItem('breathingTimerPreferences'));
-        if (preferences) {
-            if(preferences.inhale) elements.inhaleInput.value = preferences.inhale;
-            if(preferences.pause1) elements.pause1Input.value = preferences.pause1;
-            if(preferences.exhale) elements.exhaleInput.value = preferences.exhale;
-            if(preferences.pause2) elements.pause2Input.value = preferences.pause2;
-            if(preferences.cycles) elements.cyclesInput.value = preferences.cycles;
-            if(preferences.volume) elements.volumeControl.value = preferences.volume;
-            
-            if(preferences.hold) elements.holdInput.value = preferences.hold;
-            if(preferences.finalPause) elements.finalPauseInput.value = preferences.finalPause;
-            if(preferences.finalInhale) elements.finalInhaleInput.value = preferences.finalInhale;
-            if(preferences.finalPause2) elements.finalPause2Input.value = preferences.finalPause2;
-            if(preferences.whmRounds) elements.whmRoundsInput.value = preferences.whmRounds;
-            if(preferences.whmIncrease) elements.whmIncreaseInput.value = preferences.whmIncrease;
+    function setStoredNumber(input, value) {
+        if (value === undefined || value === null || value === '') return;
+        const parsed = Number(value);
+        const min = Number(input.min);
+        const max = Number(input.max);
+        if (!Number.isFinite(parsed)) return;
+        input.value = Math.min(max, Math.max(min, parsed));
+    }
 
-            if (preferences.darkMode !== undefined) {
+    function syncPresetUi() {
+        const isWhmPreset = elements.presetSelect.value === 'wim_hof';
+        elements.wimHofExtraFields.classList.toggle('d-none', !isWhmPreset);
+        elements.cyclesLabel.setAttribute('data-lang-key', isWhmPreset ? 'numberBreaths' : 'cycles');
+    }
+
+    function loadPreferences() {
+        let preferences = null;
+        try {
+            preferences = JSON.parse(localStorage.getItem('breathingTimerPreferences'));
+        } catch (error) {
+            console.warn('Ignoring invalid saved preferences.', error);
+            localStorage.removeItem('breathingTimerPreferences');
+        }
+
+        if (preferences) {
+            if (presets[preferences.preset]) elements.presetSelect.value = preferences.preset;
+            setStoredNumber(elements.inhaleInput, preferences.inhale);
+            setStoredNumber(elements.pause1Input, preferences.pause1);
+            setStoredNumber(elements.exhaleInput, preferences.exhale);
+            setStoredNumber(elements.pause2Input, preferences.pause2);
+            setStoredNumber(elements.cyclesInput, preferences.cycles);
+            setStoredNumber(elements.volumeControl, preferences.volume);
+            setStoredNumber(elements.holdInput, preferences.hold);
+            setStoredNumber(elements.finalPauseInput, preferences.finalPause);
+            setStoredNumber(elements.finalInhaleInput, preferences.finalInhale);
+            setStoredNumber(elements.finalPause2Input, preferences.finalPause2);
+            setStoredNumber(elements.whmRoundsInput, preferences.whmRounds);
+            setStoredNumber(elements.whmIncreaseInput, preferences.whmIncrease);
+
+            if (typeof preferences.darkMode === 'boolean') {
                 if(preferences.darkMode) {
                     document.body.classList.add('dark-mode');
                     elements.toggleModeButton.checked = true;
@@ -761,11 +813,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.toggleModeButton.checked = false;
                 }
             }
-            if (preferences.language) {
+            if (translations[preferences.language]) {
                 currentLanguage = preferences.language;
                 elements.languageToggle.textContent = currentLanguage.toUpperCase();
             }
         }
+        syncPresetUi();
         translatePage();
     }
 
@@ -782,12 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     elements.presetSelect.addEventListener('change', (event) => {
-        // Restore base hold if switching away from WHM after it was modified
-        if (originalWhmHold > 0 && event.target.value !== 'wim_hof') {
-            elements.holdInput.value = originalWhmHold;
-            originalWhmHold = 0;
-        }
-
+        sessionCompleted = false;
         const preset = presets[event.target.value];
         elements.inhaleInput.value = preset.inhale;
         elements.pause1Input.value = preset.pause1;
@@ -802,14 +850,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (preset.finalInhale) elements.finalInhaleInput.value = preset.finalInhale;
         if (preset.finalPause2) elements.finalPause2Input.value = preset.finalPause2;
 
-        if (event.target.value === 'wim_hof') {
-            elements.wimHofExtraFields.classList.remove('d-none');
-            elements.cyclesLabel.setAttribute('data-lang-key', 'numberBreaths');
-        } else {
-            elements.wimHofExtraFields.classList.add('d-none');
-            elements.cyclesLabel.setAttribute('data-lang-key', 'cycles');
-        }
-
+        syncPresetUi();
         translatePage();
         savePreferences();
     });
@@ -836,6 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.whmRoundsInput, elements.whmIncreaseInput
     ].forEach(input => {
         input.addEventListener('input', () => {
+            sessionCompleted = false;
             updateTotalTime();
             savePreferences();
         });
@@ -854,12 +896,20 @@ document.addEventListener('DOMContentLoaded', () => {
             // Set preset to Custom if a core timing value manually changed (ignore WHM specific ones)
             if (['inhale', 'pause1', 'exhale', 'pause2'].includes(input.id)) {
                 elements.presetSelect.value = 'custom';
+                syncPresetUi();
                 translatePage();
+                savePreferences();
             }
         });
     });
 
     document.addEventListener('keydown', (event) => {
+        const target = event.target;
+        if (target instanceof HTMLElement && (
+            target.isContentEditable ||
+            ['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(target.tagName)
+        )) return;
+
         if (event.code === 'Space') {
             event.preventDefault();
             if (isRunning) stop(); else start();
@@ -880,13 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initialize() {
         loadPreferences();
-
-        if (elements.presetSelect.value === 'wim_hof') {
-            elements.wimHofExtraFields.classList.remove('d-none');
-            elements.cyclesLabel.setAttribute('data-lang-key', 'numberBreaths');
-        } else {
-            elements.cyclesLabel.setAttribute('data-lang-key', 'cycles');
-        }
+        syncPresetUi();
         translatePage();
 
         elements.startButton.classList.remove('d-none');
