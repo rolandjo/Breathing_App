@@ -19,12 +19,12 @@
         <div class="container-fluid px-4 py-3 d-flex justify-content-between align-items-center">
             <h1 class="navbar-brand m-0 fs-4 fw-bold" data-lang-key="title">Breathing Timer</h1>
             <div class="d-flex gap-3 align-items-center">
-                <button class="btn btn-icon fw-bold" id="language-toggle" title="Toggle Language">EN</button>
+                <button class="btn btn-icon fw-bold" id="language-toggle" title="Toggle Language" aria-label="Change language">EN</button>
                 <div class="custom-control custom-switch d-flex align-items-center">
-                    <input type="checkbox" class="custom-control-input" id="toggle-mode" checked>
+                    <input type="checkbox" class="custom-control-input" id="toggle-mode" aria-label="Use dark theme" checked>
                     <label class="custom-control-label ms-2 small" for="toggle-mode"><i class="bi bi-moon-stars-fill"></i></label>
                 </div>
-                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#settingsOffcanvas" aria-controls="settingsOffcanvas">
+                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#settingsOffcanvas" aria-controls="settingsOffcanvas" aria-label="Open settings">
                     <i class="bi bi-sliders2 fs-4"></i>
                 </button>
             </div>
@@ -59,15 +59,15 @@
 
     <!-- Settings Offcanvas -->
     <div class="offcanvas offcanvas-end settings-panel" tabindex="-1" id="settingsOffcanvas" aria-labelledby="settingsOffcanvasLabel">
-        <div class="offcanvas-header border-bottom border-secondary border-opacity-25">
+        <div class="offcanvas-header px-4 py-3 border-bottom border-secondary border-opacity-25">
             <h5 class="offcanvas-title fw-bold" id="settingsOffcanvasLabel"><i class="bi bi-gear-fill me-2"></i>Settings</h5>
             <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
-        <div class="offcanvas-body p-4 custom-scrollbar">
+        <div class="offcanvas-body settings-body p-4 custom-scrollbar">
             <!-- Audio Settings -->
-            <div class="settings-section mb-4">
-                <h6 class="fw-bold mb-3 text-uppercase small text-muted">Audio</h6>
-                <div class="form-group mb-3">
+            <div class="settings-section settings-card mb-3">
+                <h6 class="settings-section-title mb-3 text-uppercase"><i class="bi bi-soundwave"></i> Audio</h6>
+                <div class="form-group">
                     <label for="volume-control" class="form-label d-flex justify-content-between mb-2">
                         <span data-lang-key="volumeControl">Volume</span>
                         <i class="bi bi-volume-up"></i>
@@ -75,12 +75,34 @@
                     <input type="range" id="volume-control" class="form-range custom-range" min="0" max="1" step="0.1" value="0.5">
                 </div>
             </div>
+
+            <!-- Dynamic Material Color -->
+            <div class="settings-section settings-card color-settings-card mb-3">
+                <h6 class="settings-section-title mb-3 text-uppercase">
+                    <i class="bi bi-palette-fill"></i> <span data-lang-key="colors">Colors</span>
+                </h6>
+                <label class="form-label" for="primary-color" data-lang-key="accentColor">Accent color</label>
+                <div class="color-picker-row">
+                    <div class="color-swatches" role="group" aria-label="Accent color presets">
+                        <button type="button" class="color-swatch" data-color="#006a6a" style="--swatch-color:#006a6a" aria-label="Teal" aria-pressed="true"></button>
+                        <button type="button" class="color-swatch" data-color="#345ca8" style="--swatch-color:#345ca8" aria-label="Blue" aria-pressed="false"></button>
+                        <button type="button" class="color-swatch" data-color="#6750a4" style="--swatch-color:#6750a4" aria-label="Violet" aria-pressed="false"></button>
+                        <button type="button" class="color-swatch" data-color="#8c4a60" style="--swatch-color:#8c4a60" aria-label="Rose" aria-pressed="false"></button>
+                        <button type="button" class="color-swatch" data-color="#386a20" style="--swatch-color:#386a20" aria-label="Green" aria-pressed="false"></button>
+                    </div>
+                    <label class="custom-color-button" for="primary-color">
+                        <input type="color" id="primary-color" value="#006a6a" aria-label="Custom accent color">
+                        <span data-lang-key="customColor">Custom</span>
+                    </label>
+                </div>
+                <p class="color-supporting-text mb-0 mt-3" data-lang-key="colorHint">Creates a coordinated Material color palette.</p>
+            </div>
             
             <!-- Breathing Pattern Settings -->
-            <div class="settings-section mb-4">
-                <h6 class="fw-bold mb-3 text-uppercase small text-muted d-flex justify-content-between align-items-center">
-                    Pattern
-                    <button id="info-button" class="btn btn-sm btn-link p-0 text-decoration-none" data-bs-toggle="modal" data-bs-target="#infoModal">
+            <div class="settings-section settings-card mb-3">
+                <h6 class="settings-section-title mb-3 text-uppercase d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-wind"></i> Pattern</span>
+                    <button id="info-button" class="btn btn-sm guide-button text-decoration-none" data-bs-toggle="modal" data-bs-target="#infoModal">
                         <i class="bi bi-info-circle"></i> Guide
                     </button>
                 </h6>
@@ -93,27 +115,28 @@
                         <option value="equal" data-lang-key="equal">Equal Breathing (4-4)</option>
                         <option value="wim_hof" data-lang-key="wim_hof">WHM Breathing</option>
                     </select>
+                    <div id="preset-description" class="preset-description mt-2">Create your own breathing rhythm.</div>
                 </div>
                 
-                <div class="form-group mb-4">
+                <div class="form-group mb-3">
                     <label id="cyclesLabel" for="cycles" class="form-label small" data-lang-key="cycles">Number of Cycles:</label>
                     <input type="number" id="cycles" class="form-control shadow-sm custom-input" value="3" min="1" max="100">
                 </div>
 
                 <div class="row g-3 mb-3">
-                    <div class="col-6">
+                    <div class="col-6 phase-setting phase-inhale">
                         <label for="inhale" class="form-label small" data-lang-key="inhale">Inhale (s)</label>
                         <input type="number" id="inhale" class="form-control shadow-sm custom-input" value="4" min="1" max="20">
                     </div>
-                    <div class="col-6">
+                    <div class="col-6 phase-setting phase-hold">
                         <label for="pause1" class="form-label small" data-lang-key="pause1">Hold (s)</label>
                         <input type="number" id="pause1" class="form-control shadow-sm custom-input" value="4" min="0" max="20">
                     </div>
-                    <div class="col-6">
+                    <div class="col-6 phase-setting phase-exhale">
                         <label for="exhale" class="form-label small" data-lang-key="exhale">Exhale (s)</label>
                         <input type="number" id="exhale" class="form-control shadow-sm custom-input" value="4" min="1" max="20">
                     </div>
-                    <div class="col-6">
+                    <div class="col-6 phase-setting phase-hold">
                         <label for="pause2" class="form-label small" data-lang-key="pause2">Hold (s)</label>
                         <input type="number" id="pause2" class="form-control shadow-sm custom-input" value="4" min="0" max="20">
                     </div>
@@ -121,9 +144,10 @@
             </div>
 
             <!-- Wim Hof Extra Fields -->
-            <div id="wim-hof-extra-fields" class="settings-section mb-4 d-none p-3 rounded glass-panel">
-                <h6 class="fw-bold mb-3 small">WHM Settings</h6>
-                <div class="row g-3">
+            <div id="wim-hof-extra-fields" class="settings-section settings-card whm-card" aria-hidden="true">
+                <div class="whm-card-content">
+                    <h6 class="settings-section-title mb-3 text-uppercase"><i class="bi bi-snow2"></i> WHM Settings</h6>
+                    <div class="row g-3">
                     <div class="col-6 form-group">
                         <label for="whmRounds" class="form-label small" data-lang-key="whmRounds">Total WHM Rounds</label>
                         <input type="number" id="whmRounds" class="form-control form-control-sm custom-input" value="6" min="1" max="20">
@@ -147,6 +171,7 @@
                     <div class="col-12 form-group">
                         <label for="finalPause2" class="form-label small" data-lang-key="finalPause2">Last exhale</label>
                         <input type="number" id="finalPause2" class="form-control form-control-sm custom-input" value="5" min="1" max="60">
+                    </div>
                     </div>
                 </div>
             </div>

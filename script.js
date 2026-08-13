@@ -22,10 +22,13 @@ document.addEventListener('DOMContentLoaded', () => {
         volumeControl: document.getElementById('volume-control'),
         presetSelect: document.getElementById('preset-select'),
         canvas: document.getElementById('breathing-canvas'),
+        visualizerWrapper: document.querySelector('.visualizer-wrapper'),
         phaseTime: document.getElementById('phase-time'),
         wimHofExtraFields: document.getElementById('wim-hof-extra-fields'),
         languageToggle: document.getElementById('language-toggle'),
-        guidedPrompt: document.getElementById('guided-prompt')
+        guidedPrompt: document.getElementById('guided-prompt'),
+        primaryColorInput: document.getElementById('primary-color'),
+        colorSwatches: document.querySelectorAll('.color-swatch')
     };
 
     const ctx = elements.canvas.getContext('2d');
@@ -38,13 +41,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let isPaused = false;
     let currentLanguage = 'en';
     let sessionCompleted = false;
+    let primaryColor = '#006a6a';
+    let promptTransitionId = 0;
 
     // Animation Loop Variables
     let animationFrameId = null;
+    let backgroundTimerId = null;
     let stepStartTime = 0;
     let lastTime = 0;
     let lastProgress = 0;
     let cachedColors = {};
+    let suppressPhaseAudio = false;
     
     // WHM Specific State
     let whmSteps = [];
@@ -88,7 +95,11 @@ document.addEventListener('DOMContentLoaded', () => {
             breatheIn: 'Breathe in...',
             holdBreath: 'Hold...',
             breatheOut: 'Breathe out...',
-            complete: 'Session complete'
+            complete: 'Session complete',
+            colors: 'Colors',
+            accentColor: 'Accent color',
+            customColor: 'Custom',
+            colorHint: 'Creates a coordinated Material color palette.'
         },
         es: {
             title: 'Temporizador de Respiración',
@@ -122,7 +133,11 @@ document.addEventListener('DOMContentLoaded', () => {
             breatheIn: 'Inhala...',
             holdBreath: 'Mantén...',
             breatheOut: 'Exhala...',
-            complete: 'Sesión completada'
+            complete: 'Sesión completada',
+            colors: 'Colores',
+            accentColor: 'Color de acento',
+            customColor: 'Personalizado',
+            colorHint: 'Crea una paleta Material coordinada.'
         },
         fr: {
             title: 'Minuteur de Respiration',
@@ -156,7 +171,11 @@ document.addEventListener('DOMContentLoaded', () => {
             breatheIn: 'Inspirez...',
             holdBreath: 'Maintenez...',
             breatheOut: 'Expirez...',
-            complete: 'Session terminée'
+            complete: 'Session terminée',
+            colors: 'Couleurs',
+            accentColor: 'Couleur d’accent',
+            customColor: 'Personnalisée',
+            colorHint: 'Crée une palette Material coordonnée.'
         }
     };
 
@@ -181,6 +200,182 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const presetDescriptions = {
+        en: {
+            custom: 'Create your own breathing rhythm.',
+            box: 'Balanced focus with four equal phases.',
+            relaxing: 'A slower exhale designed for winding down.',
+            equal: 'A simple, steady rhythm for everyday calm.',
+            wim_hof: 'Guided breathing rounds followed by timed holds.'
+        },
+        es: {
+            custom: 'Crea tu propio ritmo de respiración.',
+            box: 'Enfoque equilibrado con cuatro fases iguales.',
+            relaxing: 'Una exhalación lenta para relajarte.',
+            equal: 'Un ritmo simple y constante para la calma diaria.',
+            wim_hof: 'Rondas guiadas seguidas de retenciones cronometradas.'
+        },
+        fr: {
+            custom: 'Créez votre propre rythme respiratoire.',
+            box: 'Équilibre et concentration avec quatre phases égales.',
+            relaxing: 'Une expiration lente pour favoriser la détente.',
+            equal: 'Un rythme simple et stable pour le calme quotidien.',
+            wim_hof: 'Cycles guidés suivis de rétentions chronométrées.'
+        }
+    };
+
+    function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+    }
+
+    function hexToHsl(hex) {
+        const value = hex.replace('#', '');
+        const red = parseInt(value.slice(0, 2), 16) / 255;
+        const green = parseInt(value.slice(2, 4), 16) / 255;
+        const blue = parseInt(value.slice(4, 6), 16) / 255;
+        const max = Math.max(red, green, blue);
+        const min = Math.min(red, green, blue);
+        const delta = max - min;
+        let hue = 0;
+
+        if (delta !== 0) {
+            if (max === red) hue = 60 * (((green - blue) / delta) % 6);
+            else if (max === green) hue = 60 * ((blue - red) / delta + 2);
+            else hue = 60 * ((red - green) / delta + 4);
+        }
+
+        if (hue < 0) hue += 360;
+        const lightness = (max + min) / 2;
+        const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+        return { h: hue, s: saturation * 100 };
+    }
+
+    function hslToHex(hue, saturation, lightness) {
+        const h = ((hue % 360) + 360) % 360;
+        const s = clamp(saturation, 0, 100) / 100;
+        const l = clamp(lightness, 0, 100) / 100;
+        const chroma = (1 - Math.abs(2 * l - 1)) * s;
+        const x = chroma * (1 - Math.abs((h / 60) % 2 - 1));
+        const offset = l - chroma / 2;
+        let red = 0;
+        let green = 0;
+        let blue = 0;
+
+        if (h < 60) [red, green] = [chroma, x];
+        else if (h < 120) [red, green] = [x, chroma];
+        else if (h < 180) [green, blue] = [chroma, x];
+        else if (h < 240) [green, blue] = [x, chroma];
+        else if (h < 300) [red, blue] = [x, chroma];
+        else [red, blue] = [chroma, x];
+
+        return `#${[red, green, blue].map(channel =>
+            Math.round((channel + offset) * 255).toString(16).padStart(2, '0')
+        ).join('')}`;
+    }
+
+    function createMaterialPalette(seedColor, darkMode) {
+        const { h, s } = hexToHsl(seedColor);
+        const isNeutral = s < 5;
+        const primarySaturation = isNeutral ? 0 : clamp(s, 42, 78);
+        const secondarySaturation = isNeutral ? 0 : clamp(s * 0.38, 18, 34);
+        const tertiaryHue = (h + 62) % 360;
+        const tertiarySaturation = isNeutral ? 0 : clamp(s * 0.62, 32, 58);
+        const neutralSaturation = isNeutral ? 0 : clamp(s * 0.1, 3, 8);
+        const variantSaturation = isNeutral ? 0 : clamp(s * 0.18, 6, 14);
+
+        if (darkMode) {
+            return {
+                primary: hslToHex(h, primarySaturation, 80),
+                onPrimary: hslToHex(h, primarySaturation, 20),
+                primaryContainer: hslToHex(h, primarySaturation, 30),
+                onPrimaryContainer: hslToHex(h, primarySaturation, 90),
+                secondary: hslToHex(h, secondarySaturation, 80),
+                onSecondary: hslToHex(h, secondarySaturation, 20),
+                secondaryContainer: hslToHex(h, secondarySaturation, 30),
+                onSecondaryContainer: hslToHex(h, secondarySaturation, 90),
+                tertiary: hslToHex(tertiaryHue, tertiarySaturation, 80),
+                tertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 30),
+                onTertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 90),
+                surface: hslToHex(h, neutralSaturation, 6),
+                surfaceLow: hslToHex(h, neutralSaturation, 10),
+                surfaceContainer: hslToHex(h, neutralSaturation, 12),
+                surfaceHigh: hslToHex(h, neutralSaturation, 17),
+                surfaceHighest: hslToHex(h, variantSaturation, 22),
+                onSurface: hslToHex(h, neutralSaturation, 90),
+                onSurfaceVariant: hslToHex(h, variantSaturation, 80),
+                outline: hslToHex(h, variantSaturation, 60),
+                outlineVariant: hslToHex(h, variantSaturation, 30),
+                exhale: hslToHex(h - 58, isNeutral ? 0 : clamp(s, 38, 65), 80)
+            };
+        }
+
+        return {
+            primary: hslToHex(h, primarySaturation, 32),
+            onPrimary: '#ffffff',
+            primaryContainer: hslToHex(h, primarySaturation, 90),
+            onPrimaryContainer: hslToHex(h, primarySaturation, 10),
+            secondary: hslToHex(h, secondarySaturation, 38),
+            onSecondary: '#ffffff',
+            secondaryContainer: hslToHex(h, secondarySaturation, 90),
+            onSecondaryContainer: hslToHex(h, secondarySaturation, 10),
+            tertiary: hslToHex(tertiaryHue, tertiarySaturation, 38),
+            tertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 90),
+            onTertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 10),
+            surface: hslToHex(h, neutralSaturation, 98),
+            surfaceLow: hslToHex(h, neutralSaturation, 96),
+            surfaceContainer: hslToHex(h, neutralSaturation, 94),
+            surfaceHigh: hslToHex(h, neutralSaturation, 92),
+            surfaceHighest: hslToHex(h, variantSaturation, 90),
+            onSurface: hslToHex(h, neutralSaturation, 10),
+            onSurfaceVariant: hslToHex(h, variantSaturation, 30),
+            outline: hslToHex(h, variantSaturation, 48),
+            outlineVariant: hslToHex(h, variantSaturation, 80),
+            exhale: hslToHex(h - 58, isNeutral ? 0 : clamp(s, 38, 65), 38)
+        };
+    }
+
+    function applyPrimaryColor(color) {
+        if (!/^#[0-9a-f]{6}$/i.test(color)) return;
+        primaryColor = color.toLowerCase();
+        const palette = createMaterialPalette(primaryColor, document.body.classList.contains('dark-mode'));
+        const rootStyle = document.body.style;
+        const roles = {
+            '--md-sys-color-primary': palette.primary,
+            '--md-sys-color-on-primary': palette.onPrimary,
+            '--md-sys-color-primary-container': palette.primaryContainer,
+            '--md-sys-color-on-primary-container': palette.onPrimaryContainer,
+            '--md-sys-color-secondary': palette.secondary,
+            '--md-sys-color-on-secondary': palette.onSecondary,
+            '--md-sys-color-secondary-container': palette.secondaryContainer,
+            '--md-sys-color-on-secondary-container': palette.onSecondaryContainer,
+            '--md-sys-color-tertiary': palette.tertiary,
+            '--md-sys-color-tertiary-container': palette.tertiaryContainer,
+            '--md-sys-color-on-tertiary-container': palette.onTertiaryContainer,
+            '--md-sys-color-surface': palette.surface,
+            '--md-sys-color-surface-container-low': palette.surfaceLow,
+            '--md-sys-color-surface-container': palette.surfaceContainer,
+            '--md-sys-color-surface-container-high': palette.surfaceHigh,
+            '--md-sys-color-surface-container-highest': palette.surfaceHighest,
+            '--md-sys-color-on-surface': palette.onSurface,
+            '--md-sys-color-on-surface-variant': palette.onSurfaceVariant,
+            '--md-sys-color-outline': palette.outline,
+            '--md-sys-color-outline-variant': palette.outlineVariant,
+            '--orb-color-inhale': palette.primary,
+            '--orb-color-hold': palette.tertiary,
+            '--orb-color-exhale': palette.exhale,
+            '--orb-color-idle': palette.secondary
+        };
+
+        Object.entries(roles).forEach(([role, value]) => rootStyle.setProperty(role, value));
+        elements.primaryColorInput.value = primaryColor;
+        elements.colorSwatches.forEach(swatch => {
+            swatch.setAttribute('aria-pressed', String(swatch.dataset.color.toLowerCase() === primaryColor));
+        });
+        document.querySelector('meta[name="theme-color"]').content = palette.surface;
+        updateCachedColors();
+        if (!isRunning) drawFrame(null, 0, performance.now());
+    }
+
     // Breathing steps configuration
     const steps = [
         { action: 'Inhale', textKey: 'breatheIn', colorKey: 'inhale', duration: () => parseInt(elements.inhaleInput.value) },
@@ -194,6 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
     beep.preload = 'auto';
 
     function playBeep(phaseType = 'default') {
+        if (suppressPhaseAudio) return;
         beep.currentTime = 0;
         
         // Force the browser to NOT preserve pitch so the tone actually changes
@@ -213,10 +409,44 @@ document.addEventListener('DOMContentLoaded', () => {
         beep.play().catch(error => console.log('Audio play prevented:', error));
     }
 
+    function setGuidedPrompt(text, immediate = false) {
+        if (!text || elements.guidedPrompt.textContent === text) return;
+        const transitionId = ++promptTransitionId;
+        elements.guidedPrompt.getAnimations().forEach(animation => animation.cancel());
+
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (immediate || reduceMotion || document.hidden || suppressPhaseAudio || typeof elements.guidedPrompt.animate !== 'function') {
+            elements.guidedPrompt.textContent = text;
+            return;
+        }
+
+        const fadeOut = elements.guidedPrompt.animate([
+            { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' },
+            { opacity: 0, transform: 'translateY(-6px)', filter: 'blur(2px)' }
+        ], {
+            duration: 110,
+            easing: 'cubic-bezier(0.4, 0, 1, 1)',
+            fill: 'forwards'
+        });
+
+        fadeOut.finished.then(() => {
+            if (transitionId !== promptTransitionId) return;
+            elements.guidedPrompt.textContent = text;
+            elements.guidedPrompt.animate([
+                { opacity: 0, transform: 'translateY(8px)', filter: 'blur(2px)' },
+                { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' }
+            ], {
+                duration: 240,
+                easing: 'cubic-bezier(0.05, 0.7, 0.1, 1)',
+                fill: 'both'
+            });
+        }).catch(() => {});
+    }
+
     // --- CANVAS VISUALIZER LOGIC ---
 
     function resizeCanvas() {
-        const wrapper = document.querySelector('.visualizer-wrapper');
+        const wrapper = elements.visualizerWrapper;
         const dpr = window.devicePixelRatio || 1;
         elements.canvas.width = wrapper.clientWidth * dpr;
         elements.canvas.height = wrapper.clientHeight * dpr;
@@ -231,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
             hold: getComputedStyle(root).getPropertyValue('--orb-color-hold').trim(),
             exhale: getComputedStyle(root).getPropertyValue('--orb-color-exhale').trim(),
             idle: getComputedStyle(root).getPropertyValue('--orb-color-idle').trim(),
-            glassBorder: getComputedStyle(root).getPropertyValue('--glass-border').trim(),
+            glassBorder: getComputedStyle(root).getPropertyValue('--md-sys-color-outline-variant').trim(),
         };
     }
 
@@ -301,6 +531,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isRunning) {
             // Idle animation
             const pulse = 1 + Math.sin(idleTime / 500) * 0.1;
+            const idleRadius = r * 0.48 * pulse;
+            ctx.save();
+            ctx.globalAlpha = 0.16;
+            ctx.beginPath();
+            ctx.arc(cx, cy, idleRadius, 0, Math.PI * 2);
+            ctx.fillStyle = cachedColors.idle;
+            ctx.shadowColor = cachedColors.idle;
+            ctx.shadowBlur = 36;
+            ctx.fill();
+            ctx.restore();
+
             ctx.beginPath();
             ctx.arc(cx, cy, 20 * pulse, 0, Math.PI * 2);
             ctx.fillStyle = cachedColors.idle;
@@ -323,6 +564,29 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (vertices.length === 1) {
              currentColor = cachedColors[step.colorKey];
         }
+
+        // Material expressive breathing surface, synchronized with phase progress
+        const easedPhase = easeInOutSine(clamp(progress, 0, 1));
+        let breathScale = 0.62;
+        if (step.colorKey === 'inhale') {
+            breathScale = 0.42 + easedPhase * 0.5;
+        } else if (step.colorKey === 'exhale') {
+            breathScale = 0.92 - easedPhase * 0.5;
+        } else if (step.colorKey === 'hold') {
+            const holdBase = !isWimHof && currentStep === 3 ? 0.44 : 0.88;
+            breathScale = holdBase + Math.sin(progress * Math.PI * 2) * 0.018;
+        }
+
+        const breathRadius = r * breathScale;
+        ctx.save();
+        ctx.globalAlpha = 0.2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, breathRadius, 0, Math.PI * 2);
+        ctx.fillStyle = currentColor;
+        ctx.shadowColor = currentColor;
+        ctx.shadowBlur = 42;
+        ctx.fill();
+        ctx.restore();
 
         // Draw glowing ball
         ctx.beginPath();
@@ -352,11 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (isWimHof) {
-             processWimHofPhase(time);
-        } else {
-             processStandardPhase(time);
-        }
+        processTimerAt(time);
 
         if (isRunning) updateTotalTime(time);
 
@@ -364,12 +624,46 @@ document.addEventListener('DOMContentLoaded', () => {
         animationFrameId = requestAnimationFrame(renderLoop);
     }
 
+    function currentPhaseIsComplete(time) {
+        const step = isWimHof ? whmSteps[wimHofStepIndex] : steps[currentStep];
+        if (!step) return false;
+        const duration = step.duration();
+        return duration === 0 || time - stepStartTime >= duration * 1000;
+    }
+
+    function processTimerAt(time, catchUp = false) {
+        let caughtUp = false;
+        let transitions = 0;
+
+        do {
+            suppressPhaseAudio = catchUp && currentPhaseIsComplete(time);
+            caughtUp ||= suppressPhaseAudio;
+
+            if (isWimHof) {
+                processWimHofPhase(time);
+            } else {
+                processStandardPhase(time);
+            }
+
+            transitions++;
+        } while (
+            catchUp && isRunning && !isPaused &&
+            currentPhaseIsComplete(time) && transitions < 2000
+        );
+
+        suppressPhaseAudio = false;
+        if (caughtUp && isRunning) {
+            const currentStepConfig = isWimHof ? whmSteps[wimHofStepIndex] : steps[currentStep];
+            if (currentStepConfig) playBeep(currentStepConfig.colorKey);
+        }
+    }
+
     function processStandardPhase(time) {
         let step = steps[currentStep];
         
         // Skip 0 duration steps
         while (step && step.duration() === 0) {
-            advanceStandardStep(time);
+            advanceStandardStep(stepStartTime);
             step = steps[currentStep];
             if (!isRunning || isWimHof) return;
         }
@@ -388,7 +682,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (progress >= 1) {
             progress = 1;
             drawFrame(step, progress);
-            advanceStandardStep(time);
+            const completedAt = stepStartTime + step.duration() * 1000;
+            advanceStandardStep(completedAt);
         } else {
             drawFrame(step, progress);
             lastProgress = progress;
@@ -411,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     setupWimHofSteps();
                     stepStartTime = time; 
                     playBeep(whmSteps[0].colorKey);
-                    elements.guidedPrompt.textContent = translations[currentLanguage][whmSteps[0].textKey];
+                    setGuidedPrompt(translations[currentLanguage][whmSteps[0].textKey]);
                     return;
                 } else {
                     finishSession();
@@ -422,7 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const newStep = steps[currentStep];
         if (newStep && newStep.duration() > 0) {
-            elements.guidedPrompt.textContent = translations[currentLanguage][newStep.textKey];
+            setGuidedPrompt(translations[currentLanguage][newStep.textKey]);
             playBeep(newStep.colorKey);
         }
         
@@ -460,6 +755,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (progress >= 1) {
             progress = 1;
             drawFrame(step, progress);
+            const completedAt = stepStartTime + step.duration() * 1000;
             
             wimHofStepIndex++;
             if (wimHofStepIndex >= whmSteps.length) {
@@ -477,9 +773,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         currentStep++;
                     }
                     
-                    elements.guidedPrompt.textContent = translations[currentLanguage][steps[currentStep].textKey];
+                    setGuidedPrompt(translations[currentLanguage][steps[currentStep].textKey]);
                     playBeep(steps[currentStep].colorKey);
-                    stepStartTime = time;
+                    stepStartTime = completedAt;
                     lastProgress = 0;
                     updateTotalTime();
                     updateRemainingCycles();
@@ -487,9 +783,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            elements.guidedPrompt.textContent = translations[currentLanguage][whmSteps[wimHofStepIndex].textKey];
+            setGuidedPrompt(translations[currentLanguage][whmSteps[wimHofStepIndex].textKey]);
             playBeep(whmSteps[wimHofStepIndex].colorKey);
-            stepStartTime = time;
+            stepStartTime = completedAt;
             lastProgress = 0;
         } else {
             drawFrame(step, progress);
@@ -519,6 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isPaused = false;
         isWimHof = false;
         sessionCompleted = false;
+        elements.visualizerWrapper.classList.remove('session-complete', 'is-paused');
         currentStep = 0;
         currentCycle = 0;
         totalCycles = parseInt(elements.cyclesInput.value);
@@ -543,7 +840,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (steps[currentStep]) {
-             elements.guidedPrompt.textContent = translations[currentLanguage][steps[currentStep].textKey];
+             setGuidedPrompt(translations[currentLanguage][steps[currentStep].textKey]);
              playBeep(steps[currentStep].colorKey);
         } else {
              playBeep();
@@ -551,6 +848,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         stepStartTime = performance.now();
         lastTime = stepStartTime;
+        updateTimerExecutionMode();
     }
 
     function restoreIdleControls() {
@@ -569,6 +867,8 @@ document.addEventListener('DOMContentLoaded', () => {
         isPaused = false;
         isWimHof = false;
         sessionCompleted = false;
+        elements.visualizerWrapper.classList.remove('session-complete', 'is-paused');
+        stopBackgroundTimer();
         restoreIdleControls();
 
         updateRemainingCycles();
@@ -581,8 +881,11 @@ document.addEventListener('DOMContentLoaded', () => {
         isPaused = false;
         isWimHof = false;
         sessionCompleted = true;
+        elements.visualizerWrapper.classList.remove('is-paused');
+        elements.visualizerWrapper.classList.add('session-complete');
+        stopBackgroundTimer();
         restoreIdleControls();
-        elements.guidedPrompt.textContent = translations[currentLanguage]?.complete || 'Session complete';
+        setGuidedPrompt(translations[currentLanguage]?.complete || 'Session complete');
         elements.phaseTime.textContent = '';
         updateRemainingCycles();
         updateTimeDisplay(0, true);
@@ -592,6 +895,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function pause() {
         if (!isRunning || isPaused) return;
         isPaused = true;
+        elements.visualizerWrapper.classList.add('is-paused');
+        stopBackgroundTimer();
         elements.pauseButton.textContent = translations[currentLanguage]?.resume || 'Resume';
         elements.pauseButton.classList.remove('btn-warning');
         elements.pauseButton.classList.add('btn-primary');
@@ -600,13 +905,55 @@ document.addEventListener('DOMContentLoaded', () => {
     function resume() {
         if (!isPaused) return;
         isPaused = false;
+        elements.visualizerWrapper.classList.remove('is-paused');
         elements.pauseButton.textContent = translations[currentLanguage]?.pause || 'Pause';
         elements.pauseButton.classList.remove('btn-primary');
         elements.pauseButton.classList.add('btn-warning');
+        updateTimerExecutionMode();
+    }
+
+    function runBackgroundTick() {
+        if (!isRunning || isPaused) return;
+
+        const time = performance.now();
+        processTimerAt(time, true);
+
+        if (isRunning) updateTotalTime(time);
+        lastTime = time;
+    }
+
+    function startBackgroundTimer() {
+        if (backgroundTimerId !== null || !isRunning || isPaused) return;
+        backgroundTimerId = window.setInterval(runBackgroundTick, 250);
+    }
+
+    function stopBackgroundTimer() {
+        if (backgroundTimerId === null) return;
+        window.clearInterval(backgroundTimerId);
+        backgroundTimerId = null;
+    }
+
+    function updateTimerExecutionMode() {
+        if (document.hidden) {
+            if (animationFrameId !== null) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            startBackgroundTimer();
+            return;
+        }
+
+        stopBackgroundTimer();
+        if (animationFrameId === null) {
+            const time = performance.now();
+            if (isRunning && !isPaused) processTimerAt(time, true);
+            lastTime = time;
+            animationFrameId = requestAnimationFrame(renderLoop);
+        }
     }
 
     function resetDisplay() {
-        elements.guidedPrompt.textContent = translations[currentLanguage]?.ready || 'Ready to breathe';
+        setGuidedPrompt(translations[currentLanguage]?.ready || 'Ready to breathe');
         elements.phaseTime.textContent = '';
         drawFrame(null, 0, performance.now());
     }
@@ -734,10 +1081,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+        document.getElementById('preset-description').textContent =
+            presetDescriptions[currentLanguage][elements.presetSelect.value];
         updateTotalTime();
         updateRemainingCycles();
         if (sessionCompleted) {
-            elements.guidedPrompt.textContent = translations[currentLanguage]?.complete || 'Session complete';
+            setGuidedPrompt(translations[currentLanguage]?.complete || 'Session complete', true);
         } else if (!isRunning) {
             resetDisplay();
         }
@@ -755,6 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
             volume: elements.volumeControl.value,
             darkMode: document.body.classList.contains('dark-mode'),
             language: currentLanguage,
+            primaryColor,
             hold: elements.holdInput.value,
             finalPause: elements.finalPauseInput.value,
             finalInhale: elements.finalInhaleInput.value,
@@ -776,7 +1126,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function syncPresetUi() {
         const isWhmPreset = elements.presetSelect.value === 'wim_hof';
-        elements.wimHofExtraFields.classList.toggle('d-none', !isWhmPreset);
+        elements.wimHofExtraFields.classList.toggle('is-visible', isWhmPreset);
+        elements.wimHofExtraFields.setAttribute('aria-hidden', String(!isWhmPreset));
         elements.cyclesLabel.setAttribute('data-lang-key', isWhmPreset ? 'numberBreaths' : 'cycles');
     }
 
@@ -817,7 +1168,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentLanguage = preferences.language;
                 elements.languageToggle.textContent = currentLanguage.toUpperCase();
             }
+            if (/^#[0-9a-f]{6}$/i.test(preferences.primaryColor || '')) {
+                primaryColor = preferences.primaryColor;
+            }
         }
+        applyPrimaryColor(primaryColor);
         syncPresetUi();
         translatePage();
     }
@@ -831,11 +1186,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.volumeControl.addEventListener('input', (event) => {
         beep.volume = event.target.value;
+        event.target.style.setProperty('--range-progress', `${event.target.value * 100}%`);
+        savePreferences();
+    });
+
+    elements.colorSwatches.forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            applyPrimaryColor(swatch.dataset.color);
+            savePreferences();
+        });
+    });
+
+    elements.primaryColorInput.addEventListener('input', (event) => {
+        applyPrimaryColor(event.target.value);
         savePreferences();
     });
 
     elements.presetSelect.addEventListener('change', (event) => {
         sessionCompleted = false;
+        elements.visualizerWrapper.classList.remove('session-complete');
         const preset = presets[event.target.value];
         elements.inhaleInput.value = preset.inhale;
         elements.pause1Input.value = preset.pause1;
@@ -857,7 +1226,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.toggleModeButton.addEventListener('change', () => {
         document.body.classList.toggle('dark-mode');
-        updateCachedColors();
+        applyPrimaryColor(primaryColor);
         savePreferences();
     });
 
@@ -878,6 +1247,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ].forEach(input => {
         input.addEventListener('input', () => {
             sessionCompleted = false;
+            elements.visualizerWrapper.classList.remove('session-complete');
             updateTotalTime();
             savePreferences();
         });
@@ -920,7 +1290,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden && isRunning && !isPaused) pause();
+        updateTimerExecutionMode();
     });
 
     window.addEventListener('resize', () => {
@@ -938,6 +1308,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.pauseButton.classList.add('d-none');
 
         beep.volume = elements.volumeControl.value;
+        elements.volumeControl.style.setProperty('--range-progress', `${elements.volumeControl.value * 100}%`);
         
         resizeCanvas();
         animationFrameId = requestAnimationFrame(renderLoop);
