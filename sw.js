@@ -1,8 +1,10 @@
-const CACHE_NAME = 'breathing-timer-v20';
+const CACHE_NAME = 'breathing-timer-v21';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
+  './storage.js',
+  './ui-utils.js',
   './model.js',
   './script.js',
   './manifest.json',
@@ -31,15 +33,29 @@ self.addEventListener('install', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
-  );
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  event.respondWith((async () => {
+    const cached = await caches.match(event.request);
+    const refresh = fetch(event.request).then(async response => {
+      if (response.ok && new URL(event.request.url).origin === self.location.origin) {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(event.request, response.clone());
+      }
+      return response;
+    });
+
+    if (cached) {
+      event.waitUntil(refresh.catch(() => undefined));
+      return cached;
+    }
+    return refresh;
+  })());
 });
 
 self.addEventListener('activate', event => {

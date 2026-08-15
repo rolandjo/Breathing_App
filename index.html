@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Breathing Timer</title>
     <!-- Content Security Policy to prevent XSS and malicious injections -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; img-src 'self' data:; media-src 'self';">
@@ -23,11 +23,11 @@
         <div class="container-fluid px-4 py-3 d-flex justify-content-between align-items-center">
             <h1 class="navbar-brand m-0 fs-4 fw-bold" data-lang-key="title">Breathing Timer</h1>
             <div class="d-flex gap-1 align-items-center">
-                <button class="btn btn-icon fw-bold" id="language-toggle" title="Toggle Language" aria-label="Change language">EN</button>
-                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#appearanceOffcanvas" aria-controls="appearanceOffcanvas" aria-label="Open appearance settings">
+                <button class="btn btn-icon fw-bold" id="language-toggle" title="Toggle Language" aria-label="Change language" data-lang-aria="changeLanguage" data-lang-title="changeLanguage">EN</button>
+                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#appearanceOffcanvas" aria-controls="appearanceOffcanvas" aria-label="Open appearance settings" data-lang-aria="openAppearance">
                     <i class="fa-solid fa-palette fs-4"></i>
                 </button>
-                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#breathingOffcanvas" aria-controls="breathingOffcanvas" aria-label="Open breathing settings">
+                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#breathingOffcanvas" aria-controls="breathingOffcanvas" aria-label="Open breathing settings" data-lang-aria="openBreathing">
                     <i class="fa-solid fa-wind fs-4"></i>
                 </button>
             </div>
@@ -38,17 +38,17 @@
     <main class="timer-main-container d-flex flex-column justify-content-center align-items-center">
         <div class="practice-intro text-center">
             <div class="practice-chooser">
-                <button class="practice-selector" type="button" id="exercise-chooser-button" aria-haspopup="listbox" aria-expanded="false" aria-controls="exercise-chooser-menu" aria-label="Choose exercise">
+                <button class="practice-selector" type="button" id="exercise-chooser-button" aria-haspopup="listbox" aria-expanded="false" aria-controls="exercise-chooser-menu" aria-label="Choose exercise" data-lang-aria="chooseExercise">
                     <span id="selected-preset-name">Custom</span>
                     <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
                 </button>
-                <ul id="exercise-chooser-menu" class="exercise-menu" role="listbox"></ul>
+                <ul id="exercise-chooser-menu" class="exercise-menu" role="listbox" aria-label="Exercises" data-lang-aria="exerciseList"></ul>
             </div>
             <div id="practice-summary" class="practice-summary">4 · 4 · 4 · 4</div>
         </div>
 
         <!-- Text Prompt -->
-        <div id="guided-prompt" class="guided-prompt text-center fs-2 fw-light" data-lang-key="ready">Ready to breathe</div>
+        <div id="guided-prompt" class="guided-prompt text-center fs-2 fw-light" data-lang-key="ready" role="status" aria-live="polite" aria-atomic="true">Ready to breathe</div>
         
         <!-- Canvas Visualizer -->
         <div class="visualizer-wrapper position-relative d-flex justify-content-center align-items-center">
@@ -83,7 +83,7 @@
     <div class="offcanvas offcanvas-end settings-panel" tabindex="-1" id="appearanceOffcanvas" aria-labelledby="appearanceOffcanvasLabel">
         <div class="offcanvas-header px-4 py-3 border-bottom border-secondary border-opacity-25">
             <h5 class="offcanvas-title fw-bold" id="appearanceOffcanvasLabel"><i class="fa-solid fa-palette me-2"></i><span data-lang-key="appearance">Appearance</span></h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close" data-lang-aria="close"></button>
         </div>
         <div class="offcanvas-body settings-body p-4 custom-scrollbar">
             <div class="settings-section settings-card color-settings-card mb-3">
@@ -96,21 +96,21 @@
                         <div class="appearance-supporting" data-lang-key="darkModeHint">Use gentler colors in low light.</div>
                     </div>
                     <div class="custom-control custom-switch d-flex align-items-center">
-                        <input type="checkbox" class="custom-control-input" id="toggle-mode" aria-label="Use dark theme" checked>
+                        <input type="checkbox" class="custom-control-input" id="toggle-mode" aria-label="Use dark theme" data-lang-aria="useDarkTheme" checked>
                         <label class="custom-control-label ms-2 small" for="toggle-mode"><i class="fa-solid fa-moon"></i></label>
                     </div>
                 </div>
                 <label class="form-label" for="primary-color" data-lang-key="accentColor">Accent color</label>
                 <div class="color-picker-row">
-                    <div class="color-swatches" role="group" aria-label="Accent color presets">
-                        <button type="button" class="color-swatch" data-color="#006a6a" style="--swatch-color:#006a6a" aria-label="Teal" aria-pressed="true"></button>
-                        <button type="button" class="color-swatch" data-color="#345ca8" style="--swatch-color:#345ca8" aria-label="Blue" aria-pressed="false"></button>
-                        <button type="button" class="color-swatch" data-color="#6750a4" style="--swatch-color:#6750a4" aria-label="Violet" aria-pressed="false"></button>
-                        <button type="button" class="color-swatch" data-color="#8c4a60" style="--swatch-color:#8c4a60" aria-label="Rose" aria-pressed="false"></button>
-                        <button type="button" class="color-swatch" data-color="#386a20" style="--swatch-color:#386a20" aria-label="Green" aria-pressed="false"></button>
+                    <div class="color-swatches" role="group" aria-label="Accent color presets" data-lang-aria="accentPresets">
+                        <button type="button" class="color-swatch" data-color="#006a6a" style="--swatch-color:#006a6a" aria-label="Teal" data-lang-aria="teal" aria-pressed="true"></button>
+                        <button type="button" class="color-swatch" data-color="#345ca8" style="--swatch-color:#345ca8" aria-label="Blue" data-lang-aria="blue" aria-pressed="false"></button>
+                        <button type="button" class="color-swatch" data-color="#6750a4" style="--swatch-color:#6750a4" aria-label="Violet" data-lang-aria="violet" aria-pressed="false"></button>
+                        <button type="button" class="color-swatch" data-color="#8c4a60" style="--swatch-color:#8c4a60" aria-label="Rose" data-lang-aria="rose" aria-pressed="false"></button>
+                        <button type="button" class="color-swatch" data-color="#386a20" style="--swatch-color:#386a20" aria-label="Green" data-lang-aria="green" aria-pressed="false"></button>
                     </div>
                     <div class="custom-color-button">
-                        <input type="color" id="primary-color" value="#006a6a" aria-label="Edit custom accent color">
+                        <input type="color" id="primary-color" value="#006a6a" aria-label="Edit custom accent color" data-lang-aria="editCustomAccent">
                         <button type="button" class="custom-color-apply" id="apply-custom-color">
                             <span data-lang-key="customColor">Custom</span>
                         </button>
@@ -125,7 +125,7 @@
     <div class="offcanvas offcanvas-end settings-panel" tabindex="-1" id="breathingOffcanvas" aria-labelledby="breathingOffcanvasLabel">
         <div class="offcanvas-header px-4 py-3 border-bottom border-secondary border-opacity-25">
             <h5 class="offcanvas-title fw-bold" id="breathingOffcanvasLabel"><i class="fa-solid fa-wind me-2"></i><span data-lang-key="breathingSettings">Breathing</span></h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close" data-lang-aria="close"></button>
         </div>
         <div class="offcanvas-body settings-body p-4 custom-scrollbar">
             <!-- Audio Settings -->
@@ -145,7 +145,7 @@
                 <h6 class="settings-section-title mb-3 text-uppercase d-flex justify-content-between align-items-center">
                     <span><i class="fa-solid fa-layer-group"></i> <span data-lang-key="protocol">Protocol</span></span>
                     <button id="info-button" class="btn btn-sm guide-button text-decoration-none" data-bs-toggle="modal" data-bs-target="#infoModal">
-                        <i class="fa-solid fa-circle-info"></i> Guide
+                        <i class="fa-solid fa-circle-info" aria-hidden="true"></i> <span data-lang-key="presetInfo">Guide</span>
                     </button>
                 </h6>
                 <div class="form-group mb-3">
@@ -192,7 +192,7 @@
                         <button type="button" id="save-exercise" class="btn guide-button">
                             <span data-lang-key="saveExercise">Save</span>
                         </button>
-                        <button type="button" id="delete-exercise" class="btn btn-icon delete-exercise-btn d-none" aria-label="Delete saved exercise">
+                        <button type="button" id="delete-exercise" class="btn btn-icon delete-exercise-btn d-none" aria-label="Delete saved exercise" data-lang-aria="deleteExercise">
                             <i class="fa-solid fa-trash" aria-hidden="true"></i>
                         </button>
                     </div>
@@ -207,7 +207,7 @@
             <div class="modal-content glass-modal border-0 shadow-lg">
                 <div class="modal-header border-bottom border-secondary border-opacity-25">
                     <h5 class="modal-title fw-bold" id="infoModalLabel" data-lang-key="presetInfo">Breathing Patterns Guide</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" data-lang-aria="close"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="accordion accordion-flush custom-accordion" id="breathingPatterns">
@@ -286,8 +286,12 @@
         </div>
     </div>
 
+    <div id="app-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+
     <!-- Scripts -->
     <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="storage.js"></script>
+    <script src="ui-utils.js"></script>
     <script src="model.js"></script>
     <script src="script.js"></script>
 </body>

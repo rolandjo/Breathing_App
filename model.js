@@ -6,6 +6,7 @@
  * Phase    → inhale | hold | exhale | rest
  */
 (function (global) {
+    const Storage = global.BreathingStorage;
     const PHASE_TYPES = ['inhale', 'hold', 'exhale', 'rest'];
     const PHASE_META = {
         inhale: { textKey: 'breatheIn', colorKey: 'inhale' },
@@ -343,20 +344,31 @@
         return builtins[id] ? cloneProtocol(builtins[id]) : cloneProtocol(builtins.custom);
     }
 
+    function isValidStoredProtocol(item) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+        if (typeof item.id !== 'string' || !item.id.trim()) return false;
+        if (typeof item.name !== 'string' || !item.name.trim()) return false;
+        if (!Array.isArray(item.blocks) || !item.blocks.length) return false;
+        return item.blocks.every(block => {
+            if (!block || typeof block !== 'object') return false;
+            if (block.type === 'retention') return true;
+            if (block.type === 'ref') return typeof block.protocolId === 'string' && Boolean(block.protocolId);
+            return (block.type === 'pattern' || block.type === undefined)
+                && Array.isArray(block.phases)
+                && block.phases.length > 0;
+        });
+    }
+
     function loadUserLibrary() {
-        try {
-            const stored = JSON.parse(localStorage.getItem(LIBRARY_KEY));
-            if (!Array.isArray(stored)) return [];
-            return stored.map(item => createProtocol({ ...item, builtin: false, piece: false }));
-        } catch (error) {
-            console.warn('Ignoring invalid exercise library.', error);
-            localStorage.removeItem(LIBRARY_KEY);
-            return [];
-        }
+        const stored = Storage?.readJSON(LIBRARY_KEY, []);
+        if (!Array.isArray(stored)) return [];
+        return stored
+            .filter(isValidStoredProtocol)
+            .map(item => createProtocol({ ...item, builtin: false, piece: false }));
     }
 
     function saveUserLibrary(library) {
-        localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+        return Boolean(Storage?.writeJSON(LIBRARY_KEY, library));
     }
 
     function saveUserProtocol(protocol) {
@@ -369,12 +381,11 @@
             nameKey: ''
         });
         library.push(saved);
-        saveUserLibrary(library);
-        return saved;
+        return saveUserLibrary(library) ? saved : null;
     }
 
     function deleteUserProtocol(id) {
-        saveUserLibrary(loadUserLibrary().filter(item => item.id !== id));
+        return saveUserLibrary(loadUserLibrary().filter(item => item.id !== id));
     }
 
     function findProtocol(id) {
