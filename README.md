@@ -7,7 +7,7 @@ A browser breathing timer you can install as a PWA. Follow a visual orb and time
 - Guided inhale, hold, exhale, and rest phases with an animated visualizer
 - Built-in presets and a protocol editor (stack steps, repeat rounds, reuse other exercises)
 - Saved custom exercises in the browser (`localStorage`)
-- Dark mode, Material-style accent colors, and singing-bowl audio with volume control
+- Dark mode, Material-style accent colors, and localized spoken breathing cues with volume control
 - English, Spanish, French, and Romanian
 - Offline support via a service worker
 - Tap the screen during a session to pause or resume (buttons and panels stay clickable)
@@ -66,6 +66,8 @@ Open `index.html` directly if you only need a quick look; install-as-app and off
 | `model.js` | Protocols, blocks, library, session timeline |
 | `storage.js` | Defensive browser persistence |
 | `ui-utils.js` | Pure UI formatting and keyboard-navigation helpers |
+| `voice.js` | Prerecorded breathing cues with localized system-speech fallback |
+| `audio/voice/` | Offline MP3 cues organized by language |
 | `sw.js` | Offline cache |
 | `manifest.json` | PWA name and install metadata |
 | `vendor/` | Bundled Bootstrap and Bootstrap Icons |

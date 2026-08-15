@@ -1,10 +1,11 @@
-const CACHE_NAME = 'breathing-timer-v21';
+const CACHE_NAME = 'breathing-timer-v24';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './storage.js',
   './ui-utils.js',
+  './voice.js',
   './model.js',
   './script.js',
   './manifest.json',
@@ -14,12 +15,23 @@ const urlsToCache = [
   './icon-512.png',
   './icon-512-maskable.png',
   './apple-touch-icon.png',
+  './audio/voice/en/Inhale.mp3',
+  './audio/voice/en/Exhale.mp3',
+  './audio/voice/en/Pause.mp3',
+  './audio/voice/es/Inhale.mp3',
+  './audio/voice/es/Exhale.mp3',
+  './audio/voice/es/Pause.mp3',
+  './audio/voice/fr/Inhale.mp3',
+  './audio/voice/fr/Exhale.mp3',
+  './audio/voice/fr/Pause.mp3',
+  './audio/voice/ro/Inhale.mp3',
+  './audio/voice/ro/Exhale.mp3',
+  './audio/voice/ro/Pause.mp3',
   './vendor/bootstrap/bootstrap.min.css',
   './vendor/bootstrap/bootstrap.bundle.min.js',
   './vendor/fontawesome/css/fontawesome.min.css',
   './vendor/fontawesome/css/solid.min.css',
-  './vendor/fontawesome/webfonts/fa-solid-900.woff2',
-  './tibetan-singing-bowl-54400.mp3'
+  './vendor/fontawesome/webfonts/fa-solid-900.woff2'
 ];
 
 self.addEventListener('install', event => {
