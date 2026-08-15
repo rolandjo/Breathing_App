@@ -8,9 +8,13 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; img-src 'self' data:; media-src 'self';">
     
     <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link href="vendor/fontawesome/css/fontawesome.min.css" rel="stylesheet">
+    <link href="vendor/fontawesome/css/solid.min.css" rel="stylesheet">
     <link href="styles.css" rel="stylesheet">
-    <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css">
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="Favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <meta name="theme-color" content="#1a1a1a">
 </head>
 <body class="dark-mode">
@@ -21,10 +25,10 @@
             <div class="d-flex gap-1 align-items-center">
                 <button class="btn btn-icon fw-bold" id="language-toggle" title="Toggle Language" aria-label="Change language">EN</button>
                 <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#appearanceOffcanvas" aria-controls="appearanceOffcanvas" aria-label="Open appearance settings">
-                    <i class="bi bi-palette fs-4"></i>
+                    <i class="fa-solid fa-palette fs-4"></i>
                 </button>
                 <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#breathingOffcanvas" aria-controls="breathingOffcanvas" aria-label="Open breathing settings">
-                    <i class="bi bi-wind fs-4"></i>
+                    <i class="fa-solid fa-wind fs-4"></i>
                 </button>
             </div>
         </div>
@@ -33,11 +37,13 @@
     <!-- Main Breathing Area -->
     <main class="timer-main-container d-flex flex-column justify-content-center align-items-center">
         <div class="practice-intro text-center">
-            <span class="practice-eyebrow" data-lang-key="selectedExercise">Selected exercise</span>
-            <button class="practice-selector" type="button" data-bs-toggle="offcanvas" data-bs-target="#breathingOffcanvas" aria-controls="breathingOffcanvas" aria-label="Change breathing exercise">
-                <span id="selected-preset-name">Custom</span>
-                <i class="bi bi-chevron-down" aria-hidden="true"></i>
-            </button>
+            <div class="practice-chooser">
+                <button class="practice-selector" type="button" id="exercise-chooser-button" aria-haspopup="listbox" aria-expanded="false" aria-controls="exercise-chooser-menu" aria-label="Choose exercise">
+                    <span id="selected-preset-name">Custom</span>
+                    <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                </button>
+                <ul id="exercise-chooser-menu" class="exercise-menu" role="listbox"></ul>
+            </div>
             <div id="practice-summary" class="practice-summary">4 · 4 · 4 · 4</div>
         </div>
 
@@ -59,15 +65,15 @@
         <!-- Controls -->
         <div class="main-controls d-flex gap-3 mt-2">
             <button id="start" class="btn btn-primary btn-lg rounded-pill px-5 shadow-lg action-btn primary-action">
-                <i class="bi bi-play-fill" aria-hidden="true"></i>
+                <i class="fa-solid fa-play" aria-hidden="true"></i>
                 <span data-lang-key="start">Start</span>
             </button>
             <button id="pause" class="btn btn-warning btn-lg rounded-pill px-4 shadow-lg action-btn session-action d-none">
-                <i class="bi bi-pause-fill" aria-hidden="true"></i>
+                <i class="fa-solid fa-pause" aria-hidden="true"></i>
                 <span class="control-label" data-lang-key="pause">Pause</span>
             </button>
             <button id="stop" class="btn btn-danger btn-lg rounded-pill px-4 shadow-lg action-btn session-action d-none">
-                <i class="bi bi-x-lg" aria-hidden="true"></i>
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 <span class="control-label" data-lang-key="stop">Stop</span>
             </button>
         </div>
@@ -76,13 +82,13 @@
     <!-- Appearance -->
     <div class="offcanvas offcanvas-end settings-panel" tabindex="-1" id="appearanceOffcanvas" aria-labelledby="appearanceOffcanvasLabel">
         <div class="offcanvas-header px-4 py-3 border-bottom border-secondary border-opacity-25">
-            <h5 class="offcanvas-title fw-bold" id="appearanceOffcanvasLabel"><i class="bi bi-palette-fill me-2"></i><span data-lang-key="appearance">Appearance</span></h5>
+            <h5 class="offcanvas-title fw-bold" id="appearanceOffcanvasLabel"><i class="fa-solid fa-palette me-2"></i><span data-lang-key="appearance">Appearance</span></h5>
             <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body settings-body p-4 custom-scrollbar">
             <div class="settings-section settings-card color-settings-card mb-3">
                 <h6 class="settings-section-title mb-3 text-uppercase">
-                    <i class="bi bi-palette-fill"></i> <span data-lang-key="colors">Colors</span>
+                    <i class="fa-solid fa-palette"></i> <span data-lang-key="colors">Colors</span>
                 </h6>
                 <div class="appearance-row mb-4">
                     <div>
@@ -91,7 +97,7 @@
                     </div>
                     <div class="custom-control custom-switch d-flex align-items-center">
                         <input type="checkbox" class="custom-control-input" id="toggle-mode" aria-label="Use dark theme" checked>
-                        <label class="custom-control-label ms-2 small" for="toggle-mode"><i class="bi bi-moon-stars-fill"></i></label>
+                        <label class="custom-control-label ms-2 small" for="toggle-mode"><i class="fa-solid fa-moon"></i></label>
                     </div>
                 </div>
                 <label class="form-label" for="primary-color" data-lang-key="accentColor">Accent color</label>
@@ -103,10 +109,12 @@
                         <button type="button" class="color-swatch" data-color="#8c4a60" style="--swatch-color:#8c4a60" aria-label="Rose" aria-pressed="false"></button>
                         <button type="button" class="color-swatch" data-color="#386a20" style="--swatch-color:#386a20" aria-label="Green" aria-pressed="false"></button>
                     </div>
-                    <label class="custom-color-button" for="primary-color">
-                        <input type="color" id="primary-color" value="#006a6a" aria-label="Custom accent color">
-                        <span data-lang-key="customColor">Custom</span>
-                    </label>
+                    <div class="custom-color-button">
+                        <input type="color" id="primary-color" value="#006a6a" aria-label="Edit custom accent color">
+                        <button type="button" class="custom-color-apply" id="apply-custom-color">
+                            <span data-lang-key="customColor">Custom</span>
+                        </button>
+                    </div>
                 </div>
                 <p class="color-supporting-text mb-0 mt-3" data-lang-key="colorHint">Creates a coordinated Material color palette.</p>
             </div>
@@ -116,17 +124,17 @@
     <!-- Breathing settings -->
     <div class="offcanvas offcanvas-end settings-panel" tabindex="-1" id="breathingOffcanvas" aria-labelledby="breathingOffcanvasLabel">
         <div class="offcanvas-header px-4 py-3 border-bottom border-secondary border-opacity-25">
-            <h5 class="offcanvas-title fw-bold" id="breathingOffcanvasLabel"><i class="bi bi-wind me-2"></i><span data-lang-key="breathingSettings">Breathing</span></h5>
+            <h5 class="offcanvas-title fw-bold" id="breathingOffcanvasLabel"><i class="fa-solid fa-wind me-2"></i><span data-lang-key="breathingSettings">Breathing</span></h5>
             <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body settings-body p-4 custom-scrollbar">
             <!-- Audio Settings -->
             <div class="settings-section settings-card mb-3">
-                <h6 class="settings-section-title mb-3 text-uppercase"><i class="bi bi-soundwave"></i> <span data-lang-key="audio">Audio</span></h6>
+                <h6 class="settings-section-title mb-3 text-uppercase"><i class="fa-solid fa-wave-square"></i> <span data-lang-key="audio">Audio</span></h6>
                 <div class="form-group">
                     <label for="volume-control" class="form-label d-flex justify-content-between mb-2">
                         <span data-lang-key="volumeControl">Volume</span>
-                        <i class="bi bi-volume-up"></i>
+                        <i class="fa-solid fa-volume-high"></i>
                     </label>
                     <input type="range" id="volume-control" class="form-range custom-range" min="0" max="1" step="0.1" value="0.5">
                 </div>
@@ -135,9 +143,9 @@
             <!-- Protocol editor -->
             <div class="settings-section settings-card mb-3">
                 <h6 class="settings-section-title mb-3 text-uppercase d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-layers"></i> <span data-lang-key="protocol">Protocol</span></span>
+                    <span><i class="fa-solid fa-layer-group"></i> <span data-lang-key="protocol">Protocol</span></span>
                     <button id="info-button" class="btn btn-sm guide-button text-decoration-none" data-bs-toggle="modal" data-bs-target="#infoModal">
-                        <i class="bi bi-info-circle"></i> Guide
+                        <i class="fa-solid fa-circle-info"></i> Guide
                     </button>
                 </h6>
                 <div class="form-group mb-3">
@@ -161,11 +169,11 @@
 
                 <div class="add-block-row mb-3">
                     <button type="button" id="add-pattern-block" class="btn guide-button">
-                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
                         <span data-lang-key="addPattern">Add pattern</span>
                     </button>
                     <button type="button" id="add-retention-block" class="btn guide-button">
-                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
                         <span data-lang-key="addHold">Add hold</span>
                     </button>
                     <div class="reuse-block-field">
@@ -185,7 +193,7 @@
                             <span data-lang-key="saveExercise">Save</span>
                         </button>
                         <button type="button" id="delete-exercise" class="btn btn-icon delete-exercise-btn d-none" aria-label="Delete saved exercise">
-                            <i class="bi bi-trash3" aria-hidden="true"></i>
+                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>

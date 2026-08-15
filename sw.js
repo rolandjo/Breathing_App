@@ -1,4 +1,4 @@
-const CACHE_NAME = 'breathing-timer-v16';
+const CACHE_NAME = 'breathing-timer-v18';
 const urlsToCache = [
   './',
   './index.html',
@@ -7,11 +7,16 @@ const urlsToCache = [
   './script.js',
   './manifest.json',
   './Favicon.ico',
+  './favicon.svg',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-512-maskable.png',
+  './apple-touch-icon.png',
   './vendor/bootstrap/bootstrap.min.css',
   './vendor/bootstrap/bootstrap.bundle.min.js',
-  './vendor/bootstrap-icons/bootstrap-icons.min.css',
-  './vendor/bootstrap-icons/fonts/bootstrap-icons.woff',
-  './vendor/bootstrap-icons/fonts/bootstrap-icons.woff2',
+  './vendor/fontawesome/css/fontawesome.min.css',
+  './vendor/fontawesome/css/solid.min.css',
+  './vendor/fontawesome/webfonts/fa-solid-900.woff2',
   './tibetan-singing-bowl-54400.mp3'
 ];
 
@@ -38,16 +43,11 @@ self.addEventListener('fetch', event => {
 });
 
 self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    caches.keys().then(cacheNames => Promise.all(
+      cacheNames
+        .filter(name => name !== CACHE_NAME)
+        .map(name => caches.delete(name))
+    )).then(() => self.clients.claim())
   );
 });

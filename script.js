@@ -29,7 +29,10 @@ document.addEventListener('DOMContentLoaded', () => {
         guidedPrompt: document.getElementById('guided-prompt'),
         selectedPresetName: document.getElementById('selected-preset-name'),
         practiceSummary: document.getElementById('practice-summary'),
+        exerciseChooserButton: document.getElementById('exercise-chooser-button'),
+        exerciseChooserMenu: document.getElementById('exercise-chooser-menu'),
         primaryColorInput: document.getElementById('primary-color'),
+        applyCustomColorButton: document.getElementById('apply-custom-color'),
         colorSwatches: document.querySelectorAll('.color-swatch')
     };
 
@@ -44,7 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentLanguage = 'en';
     let sessionCompleted = false;
     let primaryColor = '#006a6a';
+    let customAccentColor = '#006a6a';
     let promptTransitionId = 0;
+    const PRESET_SWATCH_COLORS = new Set(['#006a6a', '#345ca8', '#6750a4', '#8c4a60', '#386a20']);
 
     // Animation Loop Variables
     let animationFrameId = null;
@@ -146,7 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
             recovery_breath: 'Recovery breath',
             holding: 'Holding...',
             powerRoundsTitle: 'Power rounds',
-            powerRoundsDescription: 'Rounds of deep breaths followed by a timed hold and a recovery inhale. Used to build energy and focus.'
+            powerRoundsDescription: 'Rounds of deep breaths followed by a timed hold and a recovery inhale. Used to build energy and focus.',
+            rounds: 'rounds',
+            volumeControl: 'Volume',
+            close: 'Close'
         },
         es: {
             title: 'Temporizador de Respiración',
@@ -235,7 +243,10 @@ document.addEventListener('DOMContentLoaded', () => {
             recovery_breath: 'Respiración de recuperación',
             holding: 'Reteniendo...',
             powerRoundsTitle: 'Rondas de poder',
-            powerRoundsDescription: 'Rondas de respiraciones profundas, una retención cronometrada y una inhalación de recuperación. Sirve para ganar energía y concentración.'
+            powerRoundsDescription: 'Rondas de respiraciones profundas, una retención cronometrada y una inhalación de recuperación. Sirve para ganar energía y concentración.',
+            rounds: 'rondas',
+            volumeControl: 'Volumen',
+            close: 'Cerrar'
         },
         fr: {
             title: 'Minuteur de Respiration',
@@ -324,7 +335,101 @@ document.addEventListener('DOMContentLoaded', () => {
             recovery_breath: 'Respiration de récupération',
             holding: 'Rétention...',
             powerRoundsTitle: 'Cycles dynamiques',
-            powerRoundsDescription: 'Des cycles de respirations profondes, suivis d’une rétention et d’une inspiration de récupération, pour l’énergie et la concentration.'
+            powerRoundsDescription: 'Des cycles de respirations profondes, suivis d’une rétention et d’une inspiration de récupération, pour l’énergie et la concentration.',
+            rounds: 'cycles',
+            volumeControl: 'Volume',
+            close: 'Fermer'
+        },
+        ro: {
+            title: 'Temporizator de respirație',
+            darkMode: 'Mod întunecat',
+            choosePreset: 'Alege un preset:',
+            custom: 'Personalizat',
+            box: 'Respirație pătrată (4-4-4-4)',
+            relaxing: 'Respirație relaxantă (4-7-8)',
+            equal: 'Respirație egală (4-4)',
+            power_rounds: 'Runde de putere',
+            inhale: 'Inspiră (s)',
+            pause1: 'Ține (s)',
+            exhale: 'Expiră (s)',
+            pause2: 'Ține (s)',
+            cycles: 'Cicluri',
+            numberBreaths: 'Număr de respirații:',
+            hold: 'Ține după expirare (s)',
+            finalPause: 'Pauză finală',
+            finalInhale: 'Inspirație finală',
+            finalPause2: 'Ultima expirare',
+            totalTime: 'Timp total: 0 min 0 sec',
+            remainingCycles: 'Cicluri rămase: 0',
+            start: 'Start',
+            pause: 'Pauză',
+            resume: 'Continuă',
+            stop: 'Stop',
+            presetInfo: 'Ghid',
+            ready: 'Gata de respirație',
+            selectedExercise: 'Exercițiu selectat',
+            darkModeHint: 'Folosește culori mai blânde pe întuneric.',
+            breatheIn: 'Inspiră...',
+            holdBreath: 'Ține...',
+            breatheOut: 'Expiră...',
+            complete: 'Sesiune încheiată',
+            appearance: 'Aspect',
+            breathingSettings: 'Respirație',
+            audio: 'Audio',
+            colors: 'Culori',
+            accentColor: 'Culoare de accent',
+            customColor: 'Personalizat',
+            colorHint: 'Creează o paletă Material coordonată.',
+            addPhase: 'Adaugă fază',
+            exerciseName: 'Salvează ca',
+            saveExercise: 'Salvează',
+            myExercises: 'Exercițiile mele',
+            builtinsGroup: 'Predefinite',
+            piecesGroup: 'Blocuri',
+            rest: 'Pauză',
+            inhaleType: 'Inspiră',
+            holdType: 'Ține',
+            exhaleType: 'Expiră',
+            restType: 'Pauză',
+            saved: 'Salvat',
+            protocol: 'Protocol',
+            protocolRounds: 'Repetă secvența',
+            addPattern: 'Adaugă pattern',
+            addHold: 'Adaugă reținere',
+            fromLibrary: 'Reutilizează un exercițiu…',
+            patternBlock: 'Pattern',
+            holdBlock: 'Reținere',
+            inherited: 'Legat',
+            linked: 'Legat',
+            detach: 'Fă o copie locală',
+            makeLocalCopy: 'Fă o copie locală',
+            usesExercise: 'Include {name}',
+            includesExercise: 'Include {name}',
+            linkedHint: '{name} este un exercițiu separat. Acest protocol îl include ca pas. Copiază-l aici dacă vrei o versiune doar pentru acest protocol.',
+            reuseExercise: 'Reutilizează un exercițiu',
+            reuseExerciseHint: 'Adaugă un pas legat. Rămâne sincronizat cu originalul.',
+            stepLabel: 'Pasul {n}',
+            then: 'Apoi',
+            previewReadOnly: 'Previzualizare',
+            insideExercise: 'În {name}',
+            buildingBlock: 'Bloc reutilizat',
+            protocolOutline: 'Acest protocol rulează, în ordine:',
+            moveUp: 'Sus',
+            moveDown: 'Jos',
+            removeStep: 'Elimină',
+            collapseStep: 'Restrânge pasul',
+            expandStep: 'Extinde pasul',
+            holdDuration: 'Reținere (s)',
+            holdIncrease: 'Creștere pe rundă (s)',
+            power_breaths: 'Respirații de putere',
+            whm_recovery: 'Respirație de recuperare',
+            recovery_breath: 'Respirație de recuperare',
+            holding: 'Reținere...',
+            powerRoundsTitle: 'Runde de putere',
+            powerRoundsDescription: 'Runde de respirații profunde, urmate de o reținere cronometrată și o inspirație de recuperare. Pentru energie și concentrare.',
+            rounds: 'runde',
+            volumeControl: 'Volum',
+            close: 'Închide'
         }
     };
 
@@ -349,6 +454,13 @@ document.addEventListener('DOMContentLoaded', () => {
             relaxing: 'Une expiration lente pour favoriser la détente.',
             equal: 'Un rythme simple et stable pour le calme quotidien.',
             power_rounds: 'Cycles guidés suivis de rétentions chronométrées.'
+        },
+        ro: {
+            custom: 'Creează-ți propriul ritm de respirație.',
+            box: 'Focus echilibrat, cu patru faze egale.',
+            relaxing: 'O expirare mai lentă, pentru relaxare.',
+            equal: 'Un ritm simplu și constant pentru calmul de zi cu zi.',
+            power_rounds: 'Runde ghidate, urmate de rețineri cronometrate.'
         }
     };
 
@@ -518,8 +630,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         Object.entries(roles).forEach(([role, value]) => rootStyle.setProperty(role, value));
-        if (elements.primaryColorInput && elements.primaryColorInput.value.toLowerCase() !== primaryColor) {
-            elements.primaryColorInput.value = primaryColor;
+        if (elements.primaryColorInput) {
+            elements.primaryColorInput.value = customAccentColor;
         }
         const customButton = elements.primaryColorInput?.closest('.custom-color-button');
         let matchesSwatch = false;
@@ -1083,7 +1195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setPauseControl(paused) {
         const icon = elements.pauseButton.querySelector('i');
         const label = elements.pauseButton.querySelector('.control-label');
-        if (icon) icon.className = paused ? 'bi bi-play-fill' : 'bi bi-pause-fill';
+        if (icon) icon.className = paused ? 'fa-solid fa-play' : 'fa-solid fa-pause';
         if (label) {
             label.textContent = paused
                 ? (translations[currentLanguage]?.resume || 'Resume')
@@ -1098,6 +1210,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return translations[currentLanguage][protocol.nameKey];
         }
         return protocol.name || translations[currentLanguage]?.custom || 'Custom';
+    }
+
+    function homeExerciseName(protocol) {
+        return protocolDisplayName(protocol).replace(/\s*\(\d+(?:\s*[-–·]\s*\d+)+\)\s*$/, '');
     }
 
     function formatBlockSummary(blockSummary) {
@@ -1119,15 +1235,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function syncPracticeSummary() {
-        elements.selectedPresetName.textContent = protocolDisplayName(workingProtocol);
+        const t = translations[currentLanguage] || {};
+        elements.selectedPresetName.textContent = homeExerciseName(workingProtocol);
         const summary = Model.summaryParts(workingProtocol);
         if (summary.kind === 'protocol') {
             const parts = summary.blocks.map(formatBlockSummary);
-            if (summary.rounds > 1) parts.push(`${summary.rounds} ${currentLanguage === 'es' ? 'rondas' : (currentLanguage === 'fr' ? 'cycles' : 'rounds')}`);
+            if (summary.rounds > 1) parts.push(`${summary.rounds} ${t.rounds || 'rounds'}`);
             elements.practiceSummary.textContent = parts.join(' · ');
             return;
         }
-        elements.practiceSummary.textContent = `${summary.phases.join(' · ')} · ${summary.cycles} cycles`;
+        elements.practiceSummary.textContent = `${summary.phases.join(' · ')} · ${summary.cycles} ${t.cycles || 'cycles'}`;
     }
 
     function refreshPresetSelect() {
@@ -1164,6 +1281,68 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.presetSelect.value = 'custom';
             selectedProtocolId = 'custom';
         }
+        refreshExerciseChooser();
+    }
+
+    function exerciseChooserItems() {
+        const items = Model.PRESET_IDS.map(id => ({
+            id,
+            group: 'builtin',
+            name: homeExerciseName(Model.getBuiltin(id))
+        }));
+        Model.loadUserLibrary().forEach(protocol => {
+            items.push({
+                id: protocol.id,
+                group: 'user',
+                name: protocol.name
+            });
+        });
+        return items;
+    }
+
+    function setExerciseChooserOpen(open) {
+        if (!elements.exerciseChooserButton || !elements.exerciseChooserMenu) return;
+        const chooser = elements.exerciseChooserButton.closest('.practice-chooser');
+        elements.exerciseChooserButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+        chooser?.classList.toggle('is-open', open);
+    }
+
+    function refreshExerciseChooser() {
+        const t = translations[currentLanguage] || {};
+        const menu = elements.exerciseChooserMenu;
+        if (!menu) return;
+        const items = exerciseChooserItems();
+        menu.innerHTML = '';
+        const groups = [
+            { id: 'builtin', label: t.builtinsGroup || 'Built-in' },
+            { id: 'user', label: t.myExercises || 'My exercises' }
+        ];
+        groups.forEach(group => {
+            const matches = items.filter(item => item.group === group.id);
+            if (!matches.length) return;
+            const heading = document.createElement('li');
+            heading.className = 'exercise-menu-group';
+            heading.textContent = group.label;
+            menu.appendChild(heading);
+            matches.forEach(item => {
+                const row = document.createElement('li');
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'exercise-menu-item';
+                button.setAttribute('role', 'option');
+                button.dataset.protocolId = item.id;
+                button.textContent = item.name;
+                const selected = item.id === selectedProtocolId;
+                button.classList.toggle('is-selected', selected);
+                button.setAttribute('aria-selected', selected ? 'true' : 'false');
+                button.addEventListener('click', () => {
+                    setExerciseChooserOpen(false);
+                    if (item.id !== selectedProtocolId) loadProtocol(item.id);
+                });
+                row.appendChild(button);
+                menu.appendChild(row);
+            });
+        });
     }
 
     function phaseTypeLabel(type) {
@@ -1175,7 +1354,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'btn btn-icon';
-        button.innerHTML = `<i class="bi ${icon}" aria-hidden="true"></i>`;
+        button.innerHTML = `<i class="${icon}" aria-hidden="true"></i>`;
         button.setAttribute('aria-label', label);
         button.disabled = disabled;
         return button;
@@ -1185,7 +1364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'btn block-action-btn';
-        button.innerHTML = `<i class="bi ${icon}" aria-hidden="true"></i><span>${text}</span>`;
+        button.innerHTML = `<i class="${icon}" aria-hidden="true"></i><span>${text}</span>`;
         button.setAttribute('aria-label', aria || text);
         button.title = aria || text;
         button.disabled = disabled;
@@ -1345,19 +1524,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const actions = document.createElement('div');
             actions.className = 'phase-row-actions';
-            const upButton = iconButton('bi-chevron-up', 'Move phase up', index === 0);
+            const upButton = iconButton('fa-solid fa-arrow-up', 'Move phase up', index === 0);
             upButton.addEventListener('click', () => {
                 markAsCustomIfBuiltin();
                 Model.movePhase(workingProtocol, block.id, phase.id, -1);
                 afterProtocolEdit();
             });
-            const downButton = iconButton('bi-chevron-down', 'Move phase down', index === block.phases.length - 1);
+            const downButton = iconButton('fa-solid fa-arrow-down', 'Move phase down', index === block.phases.length - 1);
             downButton.addEventListener('click', () => {
                 markAsCustomIfBuiltin();
                 Model.movePhase(workingProtocol, block.id, phase.id, 1);
                 afterProtocolEdit();
             });
-            const removeButton = iconButton('bi-dash-lg', 'Remove phase', block.phases.length <= 1);
+            const removeButton = iconButton('fa-solid fa-minus', 'Remove phase', block.phases.length <= 1);
             removeButton.addEventListener('click', () => {
                 markAsCustomIfBuiltin();
                 Model.removePhase(workingProtocol, block.id, phase.id);
@@ -1373,7 +1552,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const actions = document.createElement('div');
         actions.className = 'block-card-actions';
         const upButton = labeledActionButton(
-            'bi-arrow-up',
+            'fa-solid fa-arrow-up',
             t.moveUp || 'Up',
             t.moveUp || 'Move step up',
             index === 0
@@ -1384,7 +1563,7 @@ document.addEventListener('DOMContentLoaded', () => {
             afterProtocolEdit();
         });
         const downButton = labeledActionButton(
-            'bi-arrow-down',
+            'fa-solid fa-arrow-down',
             t.moveDown || 'Down',
             t.moveDown || 'Move step down',
             index === workingProtocol.blocks.length - 1
@@ -1395,7 +1574,7 @@ document.addEventListener('DOMContentLoaded', () => {
             afterProtocolEdit();
         });
         const removeButton = labeledActionButton(
-            'bi-trash3',
+            'fa-solid fa-trash',
             t.removeStep || 'Remove',
             t.removeStep || 'Remove step',
             workingProtocol.blocks.length <= 1
@@ -1453,7 +1632,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const addPhase = document.createElement('button');
         addPhase.type = 'button';
         addPhase.className = 'btn guide-button w-100';
-        addPhase.innerHTML = `<i class="bi bi-plus-lg" aria-hidden="true"></i> <span>${t.addPhase || 'Add phase'}</span>`;
+        addPhase.innerHTML = `<i class="fa-solid fa-plus" aria-hidden="true"></i> <span>${t.addPhase || 'Add phase'}</span>`;
         addPhase.disabled = block.phases.length >= Model.MAX_PHASES;
         addPhase.addEventListener('click', () => {
             markAsCustomIfBuiltin();
@@ -1689,6 +1868,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function translatePage() {
+        document.documentElement.lang = currentLanguage;
         document.querySelectorAll('[data-lang-key]').forEach(element => {
             const key = element.getAttribute('data-lang-key');
             const translation = translations[currentLanguage]?.[key];
@@ -1723,7 +1903,8 @@ document.addEventListener('DOMContentLoaded', () => {
             volume: elements.volumeControl.value,
             darkMode: document.body.classList.contains('dark-mode'),
             language: currentLanguage,
-            primaryColor
+            primaryColor,
+            customAccentColor
         };
         localStorage.setItem('breathingTimerPreferences', JSON.stringify(preferences));
     }
@@ -1781,6 +1962,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (/^#[0-9a-f]{6}$/i.test(preferences.primaryColor || '')) {
                 primaryColor = preferences.primaryColor;
             }
+            if (/^#[0-9a-f]{6}$/i.test(preferences.customAccentColor || '')) {
+                customAccentColor = preferences.customAccentColor;
+            } else if (!PRESET_SWATCH_COLORS.has(primaryColor.toLowerCase())) {
+                customAccentColor = primaryColor;
+            }
 
             workingProtocol = Model.migrateLegacyPreferences(preferences);
             selectedProtocolId = Model.canonicalId(
@@ -1796,6 +1982,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         applyPrimaryColor(primaryColor);
+        if (elements.primaryColorInput) {
+            elements.primaryColorInput.value = customAccentColor;
+        }
         refreshPresetSelect();
         elements.presetSelect.value = [...elements.presetSelect.options].some(option => option.value === selectedProtocolId)
             ? selectedProtocolId
@@ -1814,7 +2003,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (event) => {
         if (!isRunning) return;
         const target = event.target;
-        if (target instanceof Element && target.closest('button, a, input, select, textarea, label, .offcanvas, .modal')) {
+        if (target instanceof Element && target.closest('button, a, input, select, textarea, label, .offcanvas, .modal, .practice-chooser')) {
             return;
         }
         toggleSessionPause();
@@ -1834,11 +2023,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const applyPickedColor = (event) => {
-        applyPrimaryColor(event.target.value);
+        const nextColor = normalizeHex(event.target.value);
+        if (!nextColor) return;
+        customAccentColor = nextColor;
+        applyPrimaryColor(customAccentColor);
         savePreferences();
     };
     elements.primaryColorInput.addEventListener('input', applyPickedColor);
     elements.primaryColorInput.addEventListener('change', applyPickedColor);
+    elements.applyCustomColorButton?.addEventListener('click', () => {
+        applyPrimaryColor(customAccentColor);
+        savePreferences();
+    });
 
     elements.presetSelect.addEventListener('change', (event) => {
         loadProtocol(event.target.value);
@@ -1910,6 +2106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentIndex = languages.indexOf(currentLanguage);
         currentLanguage = languages[(currentIndex + 1) % languages.length];
         elements.languageToggle.textContent = currentLanguage.toUpperCase();
+        document.documentElement.lang = currentLanguage;
         translatePage();
         savePreferences();
     });
@@ -1975,6 +2172,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         animationFrameId = requestAnimationFrame(renderLoop);
     }
+
+    if (elements.exerciseChooserButton) {
+        elements.exerciseChooserButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const open = elements.exerciseChooserButton.getAttribute('aria-expanded') === 'true';
+            setExerciseChooserOpen(!open);
+        });
+        document.addEventListener('click', (event) => {
+            const chooser = elements.exerciseChooserButton.closest('.practice-chooser');
+            if (chooser && event.target instanceof Element && chooser.contains(event.target)) return;
+            setExerciseChooserOpen(false);
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') setExerciseChooserOpen(false);
+        });
+    }
+
+    ['appearanceOffcanvas', 'breathingOffcanvas'].forEach(id => {
+        const panel = document.getElementById(id);
+        if (!panel) return;
+        panel.addEventListener('show.bs.offcanvas', () => {
+            panel.classList.add('is-sliding-in');
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    panel.classList.remove('is-sliding-in');
+                });
+            });
+        });
+    });
 
     initialize();
 });

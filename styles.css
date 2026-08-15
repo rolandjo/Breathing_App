@@ -260,12 +260,9 @@ body {
     animation: cardReveal 420ms var(--md-sys-motion-easing-emphasized) both;
 }
 
-.practice-eyebrow {
-    color: var(--md-sys-color-on-surface-variant);
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+.practice-chooser {
+    position: relative;
+    z-index: 20;
 }
 
 .practice-selector {
@@ -289,7 +286,90 @@ body {
 .practice-selector i {
     color: var(--md-sys-color-primary);
     font-size: 1rem;
+    transition: transform 280ms var(--md-sys-motion-easing-emphasized);
 }
+
+.practice-chooser.is-open .practice-selector i {
+    transform: rotate(180deg);
+}
+
+.exercise-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    z-index: 20;
+    min-width: min(320px, calc(100vw - 48px));
+    max-height: min(360px, 50vh);
+    margin: 0;
+    padding: 8px;
+    overflow: auto;
+    list-style: none;
+    color: var(--md-sys-color-on-surface);
+    background-color: var(--md-sys-color-surface-container-highest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large);
+    box-shadow: var(--md-sys-elevation-level-3);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-50%) scale(0.96);
+    transform-origin: top center;
+    transition:
+        opacity 220ms var(--md-sys-motion-easing-emphasized),
+        transform 220ms var(--md-sys-motion-easing-emphasized),
+        visibility 0s linear 220ms;
+}
+
+.practice-chooser.is-open .exercise-menu {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(-50%) scale(1);
+    transition-delay: 0s;
+}
+
+.exercise-menu-group {
+    padding: 8px 12px 4px;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.exercise-menu-item {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    color: var(--md-sys-color-on-surface);
+    background: transparent;
+    border: 0;
+    border-radius: var(--md-sys-shape-corner-medium);
+    text-align: left;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.exercise-menu-item:hover,
+.exercise-menu-item:focus-visible {
+    background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
+}
+
+.exercise-menu-item.is-selected {
+    color: var(--md-sys-color-primary);
+    font-weight: 700;
+}
+
+.practice-chooser.is-open .exercise-menu-item {
+    animation: cardReveal 280ms var(--md-sys-motion-easing-emphasized) both;
+}
+
+.practice-chooser.is-open .exercise-menu li:nth-child(2) .exercise-menu-item { animation-delay: 30ms; }
+.practice-chooser.is-open .exercise-menu li:nth-child(3) .exercise-menu-item { animation-delay: 50ms; }
+.practice-chooser.is-open .exercise-menu li:nth-child(4) .exercise-menu-item { animation-delay: 70ms; }
+.practice-chooser.is-open .exercise-menu li:nth-child(5) .exercise-menu-item { animation-delay: 90ms; }
+.practice-chooser.is-open .exercise-menu li:nth-child(6) .exercise-menu-item { animation-delay: 110ms; }
+.practice-chooser.is-open .exercise-menu li:nth-child(7) .exercise-menu-item { animation-delay: 130ms; }
 
 .practice-summary {
     color: var(--md-sys-color-on-surface-variant);
@@ -577,8 +657,30 @@ body.dark-mode .btn-close {
     box-shadow: none;
 }
 
-.offcanvas {
+.offcanvas-end.settings-panel {
+    --bs-offcanvas-transition: transform 420ms var(--md-sys-motion-easing-emphasized);
+    transform: translateX(100%);
     transition: transform 420ms var(--md-sys-motion-easing-emphasized);
+}
+
+.offcanvas-end.settings-panel.show {
+    transform: translateX(0);
+}
+
+.offcanvas-end.settings-panel.is-sliding-in {
+    transform: translateX(100%);
+}
+
+.offcanvas-backdrop {
+    background-color: var(--md-sys-color-scrim);
+}
+
+.offcanvas-backdrop.fade {
+    transition: opacity 420ms var(--md-sys-motion-easing-emphasized);
+}
+
+.offcanvas-backdrop.show {
+    opacity: 0.4;
 }
 
 .settings-panel.show .settings-card {
@@ -638,14 +740,14 @@ body.dark-mode .btn-close {
 
 .color-picker-row {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    align-items: flex-start;
+    flex-direction: column;
     gap: 12px;
 }
 
 .color-swatches {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
 }
 
@@ -689,7 +791,7 @@ body.dark-mode .btn-close {
 .custom-color-button {
     display: inline-flex;
     min-height: 40px;
-    padding: 0 14px 0 8px;
+    padding: 0 6px 0 8px;
     align-items: center;
     gap: 8px;
     color: var(--md-sys-color-primary);
@@ -697,6 +799,14 @@ body.dark-mode .btn-close {
     border-radius: var(--md-sys-shape-corner-full);
     font-size: 0.875rem;
     font-weight: 700;
+}
+
+.custom-color-apply {
+    padding: 8px 10px 8px 0;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    font: inherit;
     cursor: pointer;
 }
 
@@ -784,8 +894,8 @@ body.dark-mode .custom-select option {
 }
 
 .phase-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1.4fr) 88px auto;
+    display: flex;
+    flex-wrap: nowrap;
     gap: 8px;
     align-items: center;
     padding: 10px;
@@ -793,20 +903,30 @@ body.dark-mode .custom-select option {
     border-radius: var(--md-sys-shape-corner-medium);
 }
 
-.phase-row .custom-select,
-.phase-row .custom-input {
+.phase-row .custom-select {
+    flex: 1 1 auto;
+    min-width: 0;
     min-height: 44px;
     padding: 8px 12px;
 }
 
+.phase-row .custom-input {
+    flex: 0 0 3.25rem;
+    width: 3.25rem;
+    min-height: 44px;
+    padding: 8px 6px;
+    text-align: center;
+}
+
 .phase-row-actions {
     display: flex;
+    flex: 0 0 auto;
     gap: 2px;
 }
 
 .phase-row-actions .btn-icon {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
 }
 
 .phase-row-actions .btn-icon:disabled {
@@ -1324,15 +1444,6 @@ select:focus-visible {
     .color-picker-row {
         align-items: flex-start;
         flex-direction: column;
-    }
-
-    .phase-row {
-        grid-template-columns: minmax(0, 1fr) 80px;
-    }
-
-    .phase-row-actions {
-        grid-column: 1 / -1;
-        justify-content: flex-end;
     }
 
     .save-exercise-controls {
