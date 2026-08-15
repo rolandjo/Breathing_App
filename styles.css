@@ -254,15 +254,16 @@ body {
 }
 
 .practice-intro {
+    position: relative;
+    z-index: 40;
     display: grid;
     justify-items: center;
     gap: 4px;
-    animation: cardReveal 420ms var(--md-sys-motion-easing-emphasized) both;
 }
 
 .practice-chooser {
     position: relative;
-    z-index: 20;
+    z-index: 1;
 }
 
 .practice-selector {
@@ -297,15 +298,16 @@ body {
     position: absolute;
     top: calc(100% + 8px);
     left: 50%;
-    z-index: 20;
+    z-index: 50;
     min-width: min(320px, calc(100vw - 48px));
     max-height: min(360px, 50vh);
     margin: 0;
     padding: 8px;
     overflow: auto;
+    isolation: isolate;
     list-style: none;
     color: var(--md-sys-color-on-surface);
-    background-color: var(--md-sys-color-surface-container-highest);
+    background: var(--md-sys-color-surface-container-high);
     border: 1px solid var(--md-sys-color-outline-variant);
     border-radius: var(--md-sys-shape-corner-large);
     box-shadow: var(--md-sys-elevation-level-3);
@@ -326,6 +328,10 @@ body {
     pointer-events: auto;
     transform: translateX(-50%) scale(1);
     transition-delay: 0s;
+}
+
+.practice-chooser.is-open ~ .practice-summary {
+    visibility: hidden;
 }
 
 .exercise-menu-group {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'breathing-timer-v18';
+const CACHE_NAME = 'breathing-timer-v20';
 const urlsToCache = [
   './',
   './index.html',

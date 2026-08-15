@@ -313,9 +313,9 @@
             blocks: [createBlock({
                 cycles: 1,
                 phases: [
-                    { type: 'rest', duration: 1 },
-                    { type: 'inhale', duration: 15 },
-                    { type: 'exhale', duration: 5 }
+                    { type: 'inhale', duration: 3 },
+                    { type: 'hold', duration: 15 },
+                    { type: 'exhale', duration: 4 }
                 ]
             })]
         }),
