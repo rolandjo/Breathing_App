@@ -10,6 +10,7 @@ A browser breathing timer you can install as a PWA. Follow a visual orb and time
 - Dark mode, Material-style accent colors, and localized spoken breathing cues with volume control
 - English, Spanish, French, and Romanian
 - Offline support via a service worker
+- Visible semantic version linked to the offline cache release
 - Tap the screen during a session to pause or resume (buttons and panels stay clickable)
 
 ## Built-in protocols
@@ -66,6 +67,7 @@ Open `index.html` directly if you only need a quick look; install-as-app and off
 | `model.js` | Protocols, blocks, library, session timeline |
 | `storage.js` | Defensive browser persistence |
 | `ui-utils.js` | Pure UI formatting and keyboard-navigation helpers |
+| `version.js` | Canonical app and offline-cache version |
 | `voice.js` | Prerecorded breathing cues with localized system-speech fallback |
 | `audio/voice/` | Offline MP3 cues organized by language |
 | `sw.js` | Offline cache |
@@ -73,6 +75,10 @@ Open `index.html` directly if you only need a quick look; install-as-app and off
 | `vendor/` | Bundled Bootstrap and Bootstrap Icons |
 
 Preferences live in `breathingTimerPreferences`. Saved exercises live in `breathingTimerLibrary`.
+
+## Releases
+
+The app follows semantic versioning. The canonical version lives in `version.js`, is displayed at the bottom of the settings drawers, and determines the service-worker cache name. `package.json` mirrors it and the test suite prevents the two versions from drifting. See [`VERSIONING.md`](VERSIONING.md) for the release workflow.
 
 ## Verify changes
 

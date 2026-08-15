@@ -1,8 +1,11 @@
-const CACHE_NAME = 'breathing-timer-v24';
+importScripts('./version.js');
+
+const CACHE_NAME = self.BreathingApp.cacheName;
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
+  './version.js',
   './storage.js',
   './ui-utils.js',
   './voice.js',
@@ -49,6 +52,24 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(event.request).catch(() => caches.match('./index.html'))
     );
+    return;
+  }
+
+  if (event.request.destination === 'script' || event.request.destination === 'style') {
+    event.respondWith((async () => {
+      const cached = await caches.match(event.request);
+      try {
+        const response = await fetch(event.request);
+        if (response.ok && new URL(event.request.url).origin === self.location.origin) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(event.request, response.clone());
+        }
+        return response;
+      } catch (error) {
+        if (cached) return cached;
+        throw error;
+      }
+    })());
     return;
   }
 

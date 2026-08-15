@@ -4,7 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const Storage = window.BreathingStorage;
     const UiUtils = window.BreathingUiUtils;
     const Voice = window.BreathingVoice;
-    if (!Model || !Storage || !UiUtils || !Voice) {
+    const App = window.BreathingApp;
+    if (!Model || !Storage || !UiUtils || !Voice || !App) {
         console.error('A required breathing app module failed to load.');
         return;
     }
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
         primaryColorInput: document.getElementById('primary-color'),
         applyCustomColorButton: document.getElementById('apply-custom-color'),
         colorSwatches: document.querySelectorAll('.color-swatch'),
+        appVersions: document.querySelectorAll('[data-app-version]'),
         appStatus: document.getElementById('app-status')
     };
 
@@ -94,6 +96,14 @@ document.addEventListener('DOMContentLoaded', () => {
             resume: 'Resume',
             stop: 'Stop',
             presetInfo: 'Guide',
+            guideTitle: 'Breathing pattern guide',
+            guideSafety: 'Keep every breath comfortable. Stop and return to normal breathing if you feel dizzy or unwell; practice power rounds only seated or lying down, never in water or while driving.',
+            boxTitle: 'Box Breathing (4-4-4-4)',
+            boxDescription: 'Follow four equal 4-second phases: inhale, hold, exhale, hold. This steady, symmetrical rhythm offers a simple pace for settling your breathing and regaining focus.',
+            relaxingTitle: 'Relaxing Breath (4-7-8)',
+            relaxingDescription: 'Inhale for 4 seconds, hold for 7, then exhale slowly for 8. The extended exhale makes this a gentle wind-down pattern; shorten the timings if the rhythm feels strained.',
+            equalTitle: 'Equal Breathing (4-4)',
+            equalDescription: 'Match a 4-second inhale with a 4-second exhale, without holds. Its continuous rhythm is easy to follow for steady, relaxed breathing; adjust both phases together to keep them equal.',
             ready: 'Ready to breathe',
             selectedExercise: 'Selected exercise',
             darkModeHint: 'Use gentler colors in low light.',
@@ -155,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
             recovery_breath: 'Recovery breath',
             holding: 'Holding...',
             powerRoundsTitle: 'Power rounds',
-            powerRoundsDescription: 'Rounds of deep breaths followed by a timed hold and a recovery inhale. Used to build energy and focus.',
+            powerRoundsDescription: 'Six rounds. Each round combines 35 brisk 2-second inhales and exhales, a hold that starts at 20 seconds and increases by 10 seconds each round, then a 3-second recovery inhale, 15-second hold, and 4-second exhale. This is the most demanding preset—stay relaxed and never force the hold.',
             rounds: 'rounds',
             volumeControl: 'Volume',
             close: 'Close',
@@ -209,6 +219,14 @@ document.addEventListener('DOMContentLoaded', () => {
             resume: 'Reanudar',
             stop: 'Detener',
             presetInfo: 'Guía',
+            guideTitle: 'Guía de patrones respiratorios',
+            guideSafety: 'Mantén cada respiración cómoda. Detente y vuelve a respirar con normalidad si sientes mareo o malestar; practica las rondas de poder solo sentado o tumbado, nunca en el agua ni mientras conduces.',
+            boxTitle: 'Respiración cuadrada (4-4-4-4)',
+            boxDescription: 'Sigue cuatro fases iguales de 4 segundos: inhala, retén, exhala y retén. Este ritmo estable y simétrico ofrece una pauta sencilla para calmar la respiración y recuperar la concentración.',
+            relaxingTitle: 'Respiración relajante (4-7-8)',
+            relaxingDescription: 'Inhala durante 4 segundos, retén durante 7 y exhala lentamente durante 8. La exhalación prolongada favorece la relajación; acorta los tiempos si el ritmo resulta forzado.',
+            equalTitle: 'Respiración equilibrada (4-4)',
+            equalDescription: 'Combina una inhalación de 4 segundos con una exhalación de 4 segundos, sin retenciones. Su ritmo continuo facilita una respiración estable y relajada; ajusta ambas fases a la vez para mantenerlas iguales.',
             ready: 'Listo para respirar',
             selectedExercise: 'Ejercicio seleccionado',
             darkModeHint: 'Usa colores más suaves con poca luz.',
@@ -270,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             recovery_breath: 'Respiración de recuperación',
             holding: 'Reteniendo...',
             powerRoundsTitle: 'Rondas de poder',
-            powerRoundsDescription: 'Rondas de respiraciones profundas, una retención cronometrada y una inhalación de recuperación. Sirve para ganar energía y concentración.',
+            powerRoundsDescription: 'Seis rondas. Cada ronda combina 35 inhalaciones y exhalaciones dinámicas de 2 segundos, una retención que comienza en 20 segundos y aumenta 10 segundos por ronda, seguida de una inhalación de recuperación de 3 segundos, una retención de 15 y una exhalación de 4. Es el patrón más exigente: mantente relajado y no fuerces la retención.',
             rounds: 'rondas',
             volumeControl: 'Volumen',
             close: 'Cerrar',
@@ -324,6 +342,14 @@ document.addEventListener('DOMContentLoaded', () => {
             resume: 'Reprendre',
             stop: 'Arrêter',
             presetInfo: 'Guide',
+            guideTitle: 'Guide des rythmes respiratoires',
+            guideSafety: 'Gardez une respiration confortable. Arrêtez et reprenez une respiration normale en cas de vertige ou de malaise ; pratiquez les cycles dynamiques uniquement assis ou allongé, jamais dans l’eau ni en conduisant.',
+            boxTitle: 'Respiration carrée (4-4-4-4)',
+            boxDescription: 'Suivez quatre phases égales de 4 secondes : inspirez, retenez, expirez, retenez. Ce rythme stable et symétrique offre un repère simple pour calmer la respiration et retrouver sa concentration.',
+            relaxingTitle: 'Respiration relaxante (4-7-8)',
+            relaxingDescription: 'Inspirez pendant 4 secondes, retenez pendant 7, puis expirez lentement pendant 8. L’expiration prolongée favorise la détente ; raccourcissez les durées si le rythme devient inconfortable.',
+            equalTitle: 'Respiration égale (4-4)',
+            equalDescription: 'Associez une inspiration de 4 secondes à une expiration de 4 secondes, sans rétention. Ce rythme continu facilite une respiration stable et détendue ; ajustez les deux phases ensemble pour les garder égales.',
             ready: 'Prêt à respirer',
             selectedExercise: 'Exercice sélectionné',
             darkModeHint: 'Utilisez des couleurs plus douces le soir.',
@@ -385,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
             recovery_breath: 'Respiration de récupération',
             holding: 'Rétention...',
             powerRoundsTitle: 'Cycles dynamiques',
-            powerRoundsDescription: 'Des cycles de respirations profondes, suivis d’une rétention et d’une inspiration de récupération, pour l’énergie et la concentration.',
+            powerRoundsDescription: 'Six cycles. Chaque cycle combine 35 inspirations et expirations dynamiques de 2 secondes, une rétention qui commence à 20 secondes et augmente de 10 secondes par cycle, puis une inspiration de récupération de 3 secondes, une rétention de 15 secondes et une expiration de 4 secondes. C’est le rythme le plus exigeant : restez détendu et ne forcez jamais la rétention.',
             rounds: 'cycles',
             volumeControl: 'Volume',
             close: 'Fermer',
@@ -439,6 +465,14 @@ document.addEventListener('DOMContentLoaded', () => {
             resume: 'Continuă',
             stop: 'Stop',
             presetInfo: 'Ghid',
+            guideTitle: 'Ghidul tiparelor de respirație',
+            guideSafety: 'Păstrează fiecare respirație confortabilă. Oprește-te și revino la respirația normală dacă amețești sau te simți rău; practică rundele de putere numai așezat sau culcat, niciodată în apă ori în timp ce conduci.',
+            boxTitle: 'Respirație pătrată (4-4-4-4)',
+            boxDescription: 'Urmează patru faze egale de câte 4 secunde: inspiră, ține, expiră și ține. Ritmul constant și simetric oferă un tempo simplu pentru liniștirea respirației și recăpătarea concentrării.',
+            relaxingTitle: 'Respirație relaxantă (4-7-8)',
+            relaxingDescription: 'Inspiră timp de 4 secunde, ține timp de 7, apoi expiră lent timp de 8. Expirația prelungită favorizează relaxarea; scurtează timpii dacă ritmul devine inconfortabil.',
+            equalTitle: 'Respirație egală (4-4)',
+            equalDescription: 'Combină o inspirație de 4 secunde cu o expirație de 4 secunde, fără rețineri. Ritmul continuu este ușor de urmărit pentru o respirație constantă și relaxată; ajustează ambele faze împreună pentru a le păstra egale.',
             ready: 'Gata de respirație',
             selectedExercise: 'Exercițiu selectat',
             darkModeHint: 'Folosește culori mai blânde pe întuneric.',
@@ -499,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
             recovery_breath: 'Respirație de recuperare',
             holding: 'Reținere...',
             powerRoundsTitle: 'Runde de putere',
-            powerRoundsDescription: 'Runde de respirații profunde, urmate de o reținere cronometrată și o inspirație de recuperare. Pentru energie și concentrare.',
+            powerRoundsDescription: 'Șase runde. Fiecare rundă combină 35 de inspirații și expirații dinamice de câte 2 secunde, o reținere care începe la 20 de secunde și crește cu 10 secunde la fiecare rundă, apoi o inspirație de recuperare de 3 secunde, o reținere de 15 secunde și o expirație de 4 secunde. Este cel mai solicitant tipar: rămâi relaxat și nu forța reținerea.',
             rounds: 'runde',
             volumeControl: 'Volum',
             close: 'Închide',
@@ -2297,6 +2331,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function initialize() {
+        elements.appVersions.forEach(element => {
+            element.textContent = `v${App.version}`;
+            element.setAttribute('aria-label', `App version ${App.version}`);
+        });
         loadPreferences();
         syncPresetUi();
         translatePage();

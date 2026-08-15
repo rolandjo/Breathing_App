@@ -144,6 +144,27 @@ body {
     letter-spacing: 0;
 }
 
+.app-version-badge {
+    padding: 0.2rem 0.5rem;
+    color: var(--md-sys-color-on-secondary-container);
+    background: var(--md-sys-color-secondary-container);
+    border-radius: var(--md-sys-shape-corner-full);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+}
+
+.settings-version-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
 .btn-icon {
     display: inline-grid;
     width: 48px;
@@ -1354,6 +1375,16 @@ body.dark-mode .custom-select option {
 
 .custom-accordion .accordion-body {
     color: var(--md-sys-color-on-surface-variant);
+}
+
+.guide-safety-note {
+    margin-bottom: 1rem;
+    padding: 0.875rem 1rem;
+    color: var(--md-sys-color-on-tertiary-container);
+    background: var(--md-sys-color-tertiary-container);
+    border-radius: var(--md-sys-shape-corner-medium);
+    font-size: 0.875rem;
+    line-height: 1.5;
 }
 
 .modal-footer .btn-secondary {
