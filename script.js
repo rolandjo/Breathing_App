@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const Model = window.BreathingModel;
     const Storage = window.BreathingStorage;
     const UiUtils = window.BreathingUiUtils;
-    if (!Model || !Storage || !UiUtils) {
+    const Voice = window.BreathingVoice;
+    if (!Model || !Storage || !UiUtils || !Voice) {
         console.error('A required breathing app module failed to load.');
         return;
     }
@@ -102,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
             complete: 'Session complete',
             appearance: 'Appearance',
             breathingSettings: 'Breathing',
-            audio: 'Audio',
+            audio: 'Voice',
             colors: 'Colors',
             accentColor: 'Accent color',
             customColor: 'Custom',
@@ -217,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
             complete: 'Sesión completada',
             appearance: 'Apariencia',
             breathingSettings: 'Respiración',
-            audio: 'Audio',
+            audio: 'Voz',
             colors: 'Colores',
             accentColor: 'Color de acento',
             customColor: 'Personalizado',
@@ -332,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
             complete: 'Session terminée',
             appearance: 'Apparence',
             breathingSettings: 'Respiration',
-            audio: 'Audio',
+            audio: 'Voix',
             colors: 'Couleurs',
             accentColor: 'Couleur d’accent',
             customColor: 'Personnalisée',
@@ -447,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
             complete: 'Sesiune încheiată',
             appearance: 'Aspect',
             breathingSettings: 'Respirație',
-            audio: 'Audio',
+            audio: 'Voce',
             colors: 'Culori',
             accentColor: 'Culoare de accent',
             customColor: 'Personalizat',
@@ -744,9 +745,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isRunning) drawFrame(null, 0, performance.now());
     }
 
-    // Audio setup
-    const beep = new Audio('./tibetan-singing-bowl-54400.mp3');
-    beep.preload = 'auto';
+    // Spoken phase cues
+    const voiceGuide = Voice.createVoiceGuide({
+        getLanguage: () => currentLanguage,
+        getVolume: () => elements.volumeControl.value
+    });
 
     function currentStep() {
         return session?.currentStep() || null;
@@ -758,25 +761,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return pattern ? Model.activePhases(pattern.phases) : [];
     }
 
-    function playBeep(phaseType = 'default') {
+    function speakPhase(phaseType = 'hold') {
         if (suppressPhaseAudio) return;
-        beep.currentTime = 0;
-        
-        // Force the browser to NOT preserve pitch so the tone actually changes
-        beep.preservesPitch = false;
-        if (beep.mozPreservesPitch !== undefined) beep.mozPreservesPitch = false;
-        if (beep.webkitPreservesPitch !== undefined) beep.webkitPreservesPitch = false;
-        
-        // Adjust pitch/speed to create distinct sounds for different phases
-        if (phaseType === 'inhale') {
-            beep.playbackRate = 1.4; // Noticeably higher pitch
-        } else if (phaseType === 'exhale') {
-            beep.playbackRate = 0.6; // Noticeably lower, deeper pitch
-        } else {
-            beep.playbackRate = 1.0; // Standard pitch for holds
-        }
-
-        beep.play().catch(error => console.log('Audio play prevented:', error));
+        voiceGuide.speak(phaseType);
     }
 
     function setGuidedPrompt(text, immediate = false) {
@@ -1014,7 +1001,7 @@ document.addEventListener('DOMContentLoaded', () => {
         suppressPhaseAudio = false;
         if (caughtUp && isRunning) {
             const step = currentStep();
-            if (step) playBeep(step.colorKey);
+            if (step) speakPhase(step.type);
         }
     }
 
@@ -1052,7 +1039,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const nextStep = currentStep();
             if (nextStep && nextStep.duration() > 0) {
                 setGuidedPrompt(translations[currentLanguage][nextStep.textKey]);
-                playBeep(nextStep.colorKey);
+                speakPhase(nextStep.type);
             }
             stepStartTime = completedAt;
             lastProgress = 0;
@@ -1099,9 +1086,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const firstStep = currentStep();
         if (firstStep) {
              setGuidedPrompt(translations[currentLanguage][firstStep.textKey]);
-             playBeep(firstStep.colorKey);
+             speakPhase(firstStep.type);
         } else {
-             playBeep();
+             speakPhase();
         }
 
         stepStartTime = performance.now();
@@ -1124,6 +1111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         isRunning = false;
         isPaused = false;
+        voiceGuide.cancel();
         sessionCompleted = false;
         session = null;
         elements.visualizerWrapper.classList.remove('session-complete', 'is-paused');
@@ -1138,6 +1126,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function finishSession() {
         isRunning = false;
         isPaused = false;
+        voiceGuide.cancel();
         session = null;
         sessionCompleted = true;
         elements.visualizerWrapper.classList.remove('is-paused');
@@ -1154,6 +1143,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function pause() {
         if (!isRunning || isPaused) return;
         isPaused = true;
+        voiceGuide.cancel();
         elements.visualizerWrapper.classList.add('is-paused');
         stopBackgroundTimer();
         setPauseControl(true);
@@ -1168,6 +1158,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setPauseControl(false);
         elements.pauseButton.classList.remove('btn-primary');
         elements.pauseButton.classList.add('btn-warning');
+        const step = currentStep();
+        if (step) speakPhase(step.type);
         updateTimerExecutionMode();
     }
 
@@ -2158,7 +2150,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     elements.volumeControl.addEventListener('input', (event) => {
-        beep.volume = event.target.value;
         event.target.style.setProperty('--range-progress', `${event.target.value * 100}%`);
         savePreferences();
     });
@@ -2314,7 +2305,6 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.stopButton.classList.add('d-none');
         elements.pauseButton.classList.add('d-none');
 
-        beep.volume = elements.volumeControl.value;
         elements.volumeControl.style.setProperty('--range-progress', `${elements.volumeControl.value * 100}%`);
         
         resizeCanvas();

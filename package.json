@@ -4,6 +4,6 @@
   "private": true,
   "scripts": {
     "test": "node --test",
-    "check": "node --check storage.js && node --check ui-utils.js && node --check model.js && node --check script.js && node --check sw.js"
+    "check": "node --check storage.js && node --check ui-utils.js && node --check voice.js && node --check model.js && node --check script.js && node --check sw.js"
   }
 }
