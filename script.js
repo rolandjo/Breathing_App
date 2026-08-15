@@ -1,18 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Element references
+    const Model = window.BreathingModel;
+    if (!Model) {
+        console.error('BreathingModel failed to load.');
+        return;
+    }
     const elements = {
-        inhaleInput: document.getElementById('inhale'),
-        pause1Input: document.getElementById('pause1'),
-        exhaleInput: document.getElementById('exhale'),
-        pause2Input: document.getElementById('pause2'),
-        cyclesInput: document.getElementById('cycles'),
-        cyclesLabel: document.getElementById('cyclesLabel'),
-        holdInput: document.getElementById('hold'),
-        finalPauseInput: document.getElementById('finalPause'),
-        finalInhaleInput: document.getElementById('finalInhale'),
-        finalPause2Input: document.getElementById('finalPause2'),
-        whmRoundsInput: document.getElementById('whmRounds'),
-        whmIncreaseInput: document.getElementById('whmIncrease'),
+        protocolRoundsInput: document.getElementById('protocol-rounds'),
+        blockList: document.getElementById('block-list'),
+        addPatternBlockButton: document.getElementById('add-pattern-block'),
+        addRetentionBlockButton: document.getElementById('add-retention-block'),
+        addLibraryBlockSelect: document.getElementById('add-library-block'),
+        exerciseNameInput: document.getElementById('exercise-name'),
+        saveExerciseButton: document.getElementById('save-exercise'),
+        deleteExerciseButton: document.getElementById('delete-exercise'),
         totalTimeDisplay: document.getElementById('total-time'),
         remainingCyclesDisplay: document.getElementById('remaining-cycles'),
         startButton: document.getElementById('start'),
@@ -22,37 +23,39 @@ document.addEventListener('DOMContentLoaded', () => {
         volumeControl: document.getElementById('volume-control'),
         presetSelect: document.getElementById('preset-select'),
         canvas: document.getElementById('breathing-canvas'),
+        visualizerWrapper: document.querySelector('.visualizer-wrapper'),
         phaseTime: document.getElementById('phase-time'),
-        wimHofExtraFields: document.getElementById('wim-hof-extra-fields'),
         languageToggle: document.getElementById('language-toggle'),
-        guidedPrompt: document.getElementById('guided-prompt')
+        guidedPrompt: document.getElementById('guided-prompt'),
+        selectedPresetName: document.getElementById('selected-preset-name'),
+        practiceSummary: document.getElementById('practice-summary'),
+        primaryColorInput: document.getElementById('primary-color'),
+        colorSwatches: document.querySelectorAll('.color-swatch')
     };
 
     const ctx = elements.canvas.getContext('2d');
 
     // State variables
-    let currentStep = 0;
-    let currentCycle = 0;
-    let totalCycles = 0;
+    let workingProtocol = Model.getBuiltin('custom');
+    let selectedProtocolId = 'custom';
+    let session = null;
     let isRunning = false;
     let isPaused = false;
     let currentLanguage = 'en';
     let sessionCompleted = false;
+    let primaryColor = '#006a6a';
+    let promptTransitionId = 0;
 
     // Animation Loop Variables
     let animationFrameId = null;
+    let backgroundTimerId = null;
     let stepStartTime = 0;
     let lastTime = 0;
     let lastProgress = 0;
     let cachedColors = {};
-    
-    // WHM Specific State
-    let whmSteps = [];
-    let isWimHof = false;
-    let wimHofStepIndex = 0;
-    let currentWhmRound = 0;
-    let totalWhmRounds = 1;
-    let originalWhmHold = 0;
+    let suppressPhaseAudio = false;
+    let visualizerResizeObserver = null;
+    const collapsedBlockIds = new Set();
 
     // Translations
     const translations = {
@@ -64,15 +67,13 @@ document.addEventListener('DOMContentLoaded', () => {
             box: 'Box Breathing (4-4-4-4)',
             relaxing: 'Relaxing Breath (4-7-8)',
             equal: 'Equal Breathing (4-4)',
-            wim_hof: 'WHM Breathing',
+            power_rounds: 'Power rounds',
             inhale: 'Inhale (s)',
             pause1: 'Hold (s)',
             exhale: 'Exhale (s)',
             pause2: 'Hold (s)',
             cycles: 'Number of Cycles:',
             numberBreaths: 'Number of Breaths:',
-            whmRounds: 'Total WHM Rounds',
-            whmIncrease: 'Hold Increase Time (s)',
             hold: 'Hold after exhale (s)',
             finalPause: 'Final Pause',
             finalInhale: 'Final Inhale & Hold',
@@ -85,10 +86,67 @@ document.addEventListener('DOMContentLoaded', () => {
             stop: 'Stop',
             presetInfo: 'Guide',
             ready: 'Ready to breathe',
+            selectedExercise: 'Selected exercise',
+            darkModeHint: 'Use gentler colors in low light.',
             breatheIn: 'Breathe in...',
             holdBreath: 'Hold...',
             breatheOut: 'Breathe out...',
-            complete: 'Session complete'
+            complete: 'Session complete',
+            appearance: 'Appearance',
+            breathingSettings: 'Breathing',
+            audio: 'Audio',
+            colors: 'Colors',
+            accentColor: 'Accent color',
+            customColor: 'Custom',
+            colorHint: 'Creates a coordinated Material color palette.',
+            addPhase: 'Add phase',
+            exerciseName: 'Save as',
+            saveExercise: 'Save',
+            myExercises: 'My exercises',
+            builtinsGroup: 'Built-in',
+            piecesGroup: 'Building blocks',
+            rest: 'Rest',
+            inhaleType: 'Inhale',
+            holdType: 'Hold',
+            exhaleType: 'Exhale',
+            restType: 'Rest',
+            saved: 'Saved',
+            protocol: 'Protocol',
+            protocolRounds: 'Repeat sequence',
+            addPattern: 'Add pattern',
+            addHold: 'Add hold',
+            fromLibrary: 'Reuse an exercise…',
+            patternBlock: 'Pattern',
+            holdBlock: 'Hold',
+            inherited: 'Linked',
+            linked: 'Linked',
+            detach: 'Make a local copy',
+            makeLocalCopy: 'Make a local copy',
+            usesExercise: 'Includes {name}',
+            includesExercise: 'Includes {name}',
+            linkedHint: '{name} is a separate exercise. This protocol includes it as this step. Copy it here if you want a version that only this protocol uses.',
+            reuseExercise: 'Reuse an exercise',
+            reuseExerciseHint: 'Adds a linked step. It stays in sync with the original.',
+            stepLabel: 'Step {n}',
+            then: 'Then',
+            previewReadOnly: 'Preview',
+            insideExercise: 'Inside {name}',
+            buildingBlock: 'Building block',
+            protocolOutline: 'This protocol runs, in order:',
+            moveUp: 'Up',
+            moveDown: 'Down',
+            removeStep: 'Remove',
+            collapseStep: 'Collapse step',
+            expandStep: 'Expand step',
+            cycles: 'Cycles',
+            holdDuration: 'Hold (s)',
+            holdIncrease: 'Increase each round (s)',
+            power_breaths: 'Power breaths',
+            whm_recovery: 'Recovery breath',
+            recovery_breath: 'Recovery breath',
+            holding: 'Holding...',
+            powerRoundsTitle: 'Power rounds',
+            powerRoundsDescription: 'Rounds of deep breaths followed by a timed hold and a recovery inhale. Used to build energy and focus.'
         },
         es: {
             title: 'Temporizador de Respiración',
@@ -98,15 +156,13 @@ document.addEventListener('DOMContentLoaded', () => {
             box: 'Respiración Cuadrada (4-4-4-4)',
             relaxing: 'Respiración Relajante (4-7-8)',
             equal: 'Respiración Igual (4-4)',
-            wim_hof: 'Respiración WHM',
+            power_rounds: 'Rondas de poder',
             inhale: 'Inhalar (s)',
             pause1: 'Mantener (s)',
             exhale: 'Exhalar (s)',
             pause2: 'Mantener (s)',
             cycles: 'Número de ciclos:',
             numberBreaths: 'Número de Respiraciones:',
-            whmRounds: 'Rondas Totales WHM',
-            whmIncrease: 'Aumento de Retención (s)',
             hold: 'Mantener después de exhalar (s)',
             finalPause: 'Pausa Final',
             finalInhale: 'Inhalación Final',
@@ -119,10 +175,67 @@ document.addEventListener('DOMContentLoaded', () => {
             stop: 'Detener',
             presetInfo: 'Guía',
             ready: 'Listo para respirar',
+            selectedExercise: 'Ejercicio seleccionado',
+            darkModeHint: 'Usa colores más suaves con poca luz.',
             breatheIn: 'Inhala...',
             holdBreath: 'Mantén...',
             breatheOut: 'Exhala...',
-            complete: 'Sesión completada'
+            complete: 'Sesión completada',
+            appearance: 'Apariencia',
+            breathingSettings: 'Respiración',
+            audio: 'Audio',
+            colors: 'Colores',
+            accentColor: 'Color de acento',
+            customColor: 'Personalizado',
+            colorHint: 'Crea una paleta Material coordinada.',
+            addPhase: 'Añadir fase',
+            exerciseName: 'Guardar como',
+            saveExercise: 'Guardar',
+            myExercises: 'Mis ejercicios',
+            builtinsGroup: 'Incluidos',
+            piecesGroup: 'Bloques',
+            rest: 'Descanso',
+            inhaleType: 'Inhalar',
+            holdType: 'Mantener',
+            exhaleType: 'Exhalar',
+            restType: 'Descanso',
+            saved: 'Guardado',
+            protocol: 'Protocolo',
+            protocolRounds: 'Repetir secuencia',
+            addPattern: 'Añadir patrón',
+            addHold: 'Añadir retención',
+            fromLibrary: 'Reutilizar un ejercicio…',
+            patternBlock: 'Patrón',
+            holdBlock: 'Retención',
+            inherited: 'Vinculado',
+            linked: 'Vinculado',
+            detach: 'Hacer una copia local',
+            makeLocalCopy: 'Hacer una copia local',
+            usesExercise: 'Incluye {name}',
+            includesExercise: 'Incluye {name}',
+            linkedHint: '{name} es un ejercicio aparte. Este protocolo lo incluye como este paso. Cópialo aquí si quieres una versión solo para este protocolo.',
+            reuseExercise: 'Reutilizar un ejercicio',
+            reuseExerciseHint: 'Añade un paso vinculado. Se mantiene sincronizado con el original.',
+            stepLabel: 'Paso {n}',
+            then: 'Luego',
+            previewReadOnly: 'Vista previa',
+            insideExercise: 'Dentro de {name}',
+            buildingBlock: 'Bloque reutilizado',
+            protocolOutline: 'Este protocolo ejecuta, en orden:',
+            moveUp: 'Subir',
+            moveDown: 'Bajar',
+            removeStep: 'Quitar',
+            collapseStep: 'Contraer paso',
+            expandStep: 'Expandir paso',
+            cycles: 'Ciclos',
+            holdDuration: 'Retención (s)',
+            holdIncrease: 'Aumento por ronda (s)',
+            power_breaths: 'Respiraciones de poder',
+            whm_recovery: 'Respiración de recuperación',
+            recovery_breath: 'Respiración de recuperación',
+            holding: 'Reteniendo...',
+            powerRoundsTitle: 'Rondas de poder',
+            powerRoundsDescription: 'Rondas de respiraciones profundas, una retención cronometrada y una inhalación de recuperación. Sirve para ganar energía y concentración.'
         },
         fr: {
             title: 'Minuteur de Respiration',
@@ -132,15 +245,13 @@ document.addEventListener('DOMContentLoaded', () => {
             box: 'Respiration Carrée (4-4-4-4)',
             relaxing: 'Respiration Relaxante (4-7-8)',
             equal: 'Respiration Égale (4-4)',
-            wim_hof: 'Respiration WHM',
+            power_rounds: 'Cycles dynamiques',
             inhale: 'Inspirer (s)',
             pause1: 'Maintenir (s)',
             exhale: 'Expirer (s)',
             pause2: 'Maintenir (s)',
             cycles: 'Nombre de cycles:',
             numberBreaths: 'Nombre de Respirations:',
-            whmRounds: 'Total de Cycles WHM',
-            whmIncrease: 'Augmentation de la Rétention (s)',
             hold: 'Maintenir après expiration (s)',
             finalPause: 'Pause Finale',
             finalInhale: 'Inspiration Finale',
@@ -153,47 +264,295 @@ document.addEventListener('DOMContentLoaded', () => {
             stop: 'Arrêter',
             presetInfo: 'Guide',
             ready: 'Prêt à respirer',
+            selectedExercise: 'Exercice sélectionné',
+            darkModeHint: 'Utilisez des couleurs plus douces le soir.',
             breatheIn: 'Inspirez...',
             holdBreath: 'Maintenez...',
             breatheOut: 'Expirez...',
-            complete: 'Session terminée'
+            complete: 'Session terminée',
+            appearance: 'Apparence',
+            breathingSettings: 'Respiration',
+            audio: 'Audio',
+            colors: 'Couleurs',
+            accentColor: 'Couleur d’accent',
+            customColor: 'Personnalisée',
+            colorHint: 'Crée une palette Material coordonnée.',
+            addPhase: 'Ajouter une phase',
+            exerciseName: 'Enregistrer sous',
+            saveExercise: 'Enregistrer',
+            myExercises: 'Mes exercices',
+            builtinsGroup: 'Préréglages',
+            piecesGroup: 'Blocs',
+            rest: 'Pause',
+            inhaleType: 'Inspirer',
+            holdType: 'Maintenir',
+            exhaleType: 'Expirer',
+            restType: 'Pause',
+            saved: 'Enregistré',
+            protocol: 'Protocole',
+            protocolRounds: 'Répéter la séquence',
+            addPattern: 'Ajouter un motif',
+            addHold: 'Ajouter une rétention',
+            fromLibrary: 'Réutiliser un exercice…',
+            patternBlock: 'Motif',
+            holdBlock: 'Rétention',
+            inherited: 'Lié',
+            linked: 'Lié',
+            detach: 'Faire une copie locale',
+            makeLocalCopy: 'Faire une copie locale',
+            usesExercise: 'Inclut {name}',
+            includesExercise: 'Inclut {name}',
+            linkedHint: '{name} est un exercice séparé. Ce protocole l’inclut comme cette étape. Copiez-le ici pour une version propre à ce protocole.',
+            reuseExercise: 'Réutiliser un exercice',
+            reuseExerciseHint: 'Ajoute une étape liée. Elle reste synchronisée avec l’original.',
+            stepLabel: 'Étape {n}',
+            then: 'Puis',
+            previewReadOnly: 'Aperçu',
+            insideExercise: 'Dans {name}',
+            buildingBlock: 'Bloc réutilisé',
+            protocolOutline: 'Ce protocole enchaîne, dans l’ordre :',
+            moveUp: 'Haut',
+            moveDown: 'Bas',
+            removeStep: 'Retirer',
+            collapseStep: 'Réduire l’étape',
+            expandStep: 'Développer l’étape',
+            cycles: 'Cycles',
+            holdDuration: 'Rétention (s)',
+            holdIncrease: 'Augmentation par cycle (s)',
+            power_breaths: 'Respirations puissantes',
+            whm_recovery: 'Respiration de récupération',
+            recovery_breath: 'Respiration de récupération',
+            holding: 'Rétention...',
+            powerRoundsTitle: 'Cycles dynamiques',
+            powerRoundsDescription: 'Des cycles de respirations profondes, suivis d’une rétention et d’une inspiration de récupération, pour l’énergie et la concentration.'
         }
     };
 
-    // Breathing pattern presets
-    const presets = {
-        custom: { inhale: 4, pause1: 4, exhale: 4, pause2: 4 },
-        box: { inhale: 4, pause1: 4, exhale: 4, pause2: 4 },
-        relaxing: { inhale: 4, pause1: 7, exhale: 8, pause2: 0 },
-        equal: { inhale: 4, pause1: 0, exhale: 4, pause2: 0 },
-        wim_hof: {
-            inhale: 2,
-            pause1: 0,
-            exhale: 2,
-            pause2: 0,
-            cycles: 35,
-            hold: 20,
-            whmRounds: 6,
-            whmIncrease: 10,
-            finalPause: 1,
-            finalInhale: 15,
-            finalPause2: 5
+    const presetDescriptions = {
+        en: {
+            custom: 'Create your own breathing rhythm.',
+            box: 'Balanced focus with four equal phases.',
+            relaxing: 'A slower exhale designed for winding down.',
+            equal: 'A simple, steady rhythm for everyday calm.',
+            power_rounds: 'Guided breathing rounds followed by timed holds.'
+        },
+        es: {
+            custom: 'Crea tu propio ritmo de respiración.',
+            box: 'Enfoque equilibrado con cuatro fases iguales.',
+            relaxing: 'Una exhalación lenta para relajarte.',
+            equal: 'Un ritmo simple y constante para la calma diaria.',
+            power_rounds: 'Rondas guiadas seguidas de retenciones cronometradas.'
+        },
+        fr: {
+            custom: 'Créez votre propre rythme respiratoire.',
+            box: 'Équilibre et concentration avec quatre phases égales.',
+            relaxing: 'Une expiration lente pour favoriser la détente.',
+            equal: 'Un rythme simple et stable pour le calme quotidien.',
+            power_rounds: 'Cycles guidés suivis de rétentions chronométrées.'
         }
     };
 
-    // Breathing steps configuration
-    const steps = [
-        { action: 'Inhale', textKey: 'breatheIn', colorKey: 'inhale', duration: () => parseInt(elements.inhaleInput.value) },
-        { action: 'Hold', textKey: 'holdBreath', colorKey: 'hold', duration: () => parseInt(elements.pause1Input.value) },
-        { action: 'Exhale', textKey: 'breatheOut', colorKey: 'exhale', duration: () => parseInt(elements.exhaleInput.value) },
-        { action: 'Hold', textKey: 'holdBreath', colorKey: 'hold', duration: () => parseInt(elements.pause2Input.value) }
-    ];
+    function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+    }
+
+    function normalizeHex(color) {
+        if (typeof color !== 'string') return '';
+        const value = color.trim().toLowerCase();
+        if (/^#[0-9a-f]{6}$/.test(value)) return value;
+        if (/^#[0-9a-f]{3}$/.test(value)) {
+            return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`;
+        }
+        return '';
+    }
+
+    function onColorFor(hex) {
+        const value = hex.replace('#', '');
+        const channel = offset => {
+            const number = parseInt(value.slice(offset, offset + 2), 16) / 255;
+            return number <= 0.03928 ? number / 12.92 : ((number + 0.055) / 1.055) ** 2.4;
+        };
+        const luminance = 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+        return luminance > 0.45 ? '#1a1a1a' : '#ffffff';
+    }
+
+    function hexToHsl(hex) {
+        const value = hex.replace('#', '');
+        const red = parseInt(value.slice(0, 2), 16) / 255;
+        const green = parseInt(value.slice(2, 4), 16) / 255;
+        const blue = parseInt(value.slice(4, 6), 16) / 255;
+        const max = Math.max(red, green, blue);
+        const min = Math.min(red, green, blue);
+        const delta = max - min;
+        let hue = 0;
+
+        if (delta !== 0) {
+            if (max === red) hue = 60 * (((green - blue) / delta) % 6);
+            else if (max === green) hue = 60 * ((blue - red) / delta + 2);
+            else hue = 60 * ((red - green) / delta + 4);
+        }
+
+        if (hue < 0) hue += 360;
+        const lightness = (max + min) / 2;
+        const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+        return { h: hue, s: saturation * 100 };
+    }
+
+    function hslToHex(hue, saturation, lightness) {
+        const h = ((hue % 360) + 360) % 360;
+        const s = clamp(saturation, 0, 100) / 100;
+        const l = clamp(lightness, 0, 100) / 100;
+        const chroma = (1 - Math.abs(2 * l - 1)) * s;
+        const x = chroma * (1 - Math.abs((h / 60) % 2 - 1));
+        const offset = l - chroma / 2;
+        let red = 0;
+        let green = 0;
+        let blue = 0;
+
+        if (h < 60) [red, green] = [chroma, x];
+        else if (h < 120) [red, green] = [x, chroma];
+        else if (h < 180) [green, blue] = [chroma, x];
+        else if (h < 240) [green, blue] = [x, chroma];
+        else if (h < 300) [red, blue] = [x, chroma];
+        else [red, blue] = [chroma, x];
+
+        return `#${[red, green, blue].map(channel =>
+            Math.round((channel + offset) * 255).toString(16).padStart(2, '0')
+        ).join('')}`;
+    }
+
+    function createMaterialPalette(seedColor, darkMode) {
+        const { h, s } = hexToHsl(seedColor);
+        const isNeutral = s < 5;
+        const primarySaturation = isNeutral ? 0 : clamp(s, 42, 78);
+        const secondarySaturation = isNeutral ? 0 : clamp(s * 0.38, 18, 34);
+        const tertiaryHue = (h + 62) % 360;
+        const tertiarySaturation = isNeutral ? 0 : clamp(s * 0.62, 32, 58);
+        const neutralSaturation = isNeutral ? 0 : clamp(s * 0.1, 3, 8);
+        const variantSaturation = isNeutral ? 0 : clamp(s * 0.18, 6, 14);
+
+        if (darkMode) {
+            return {
+                primary: hslToHex(h, primarySaturation, 80),
+                onPrimary: hslToHex(h, primarySaturation, 20),
+                primaryContainer: hslToHex(h, primarySaturation, 30),
+                onPrimaryContainer: hslToHex(h, primarySaturation, 90),
+                secondary: hslToHex(h, secondarySaturation, 80),
+                onSecondary: hslToHex(h, secondarySaturation, 20),
+                secondaryContainer: hslToHex(h, secondarySaturation, 30),
+                onSecondaryContainer: hslToHex(h, secondarySaturation, 90),
+                tertiary: hslToHex(tertiaryHue, tertiarySaturation, 80),
+                tertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 30),
+                onTertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 90),
+                surface: hslToHex(h, neutralSaturation, 6),
+                surfaceLow: hslToHex(h, neutralSaturation, 10),
+                surfaceContainer: hslToHex(h, neutralSaturation, 12),
+                surfaceHigh: hslToHex(h, neutralSaturation, 17),
+                surfaceHighest: hslToHex(h, variantSaturation, 22),
+                onSurface: hslToHex(h, neutralSaturation, 90),
+                onSurfaceVariant: hslToHex(h, variantSaturation, 80),
+                outline: hslToHex(h, variantSaturation, 60),
+                outlineVariant: hslToHex(h, variantSaturation, 30),
+                exhale: hslToHex(h - 58, isNeutral ? 0 : clamp(s, 38, 65), 80)
+            };
+        }
+
+        return {
+            primary: hslToHex(h, primarySaturation, 32),
+            onPrimary: '#ffffff',
+            primaryContainer: hslToHex(h, primarySaturation, 90),
+            onPrimaryContainer: hslToHex(h, primarySaturation, 10),
+            secondary: hslToHex(h, secondarySaturation, 38),
+            onSecondary: '#ffffff',
+            secondaryContainer: hslToHex(h, secondarySaturation, 90),
+            onSecondaryContainer: hslToHex(h, secondarySaturation, 10),
+            tertiary: hslToHex(tertiaryHue, tertiarySaturation, 38),
+            tertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 90),
+            onTertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 10),
+            surface: hslToHex(h, neutralSaturation, 98),
+            surfaceLow: hslToHex(h, neutralSaturation, 96),
+            surfaceContainer: hslToHex(h, neutralSaturation, 94),
+            surfaceHigh: hslToHex(h, neutralSaturation, 92),
+            surfaceHighest: hslToHex(h, variantSaturation, 90),
+            onSurface: hslToHex(h, neutralSaturation, 10),
+            onSurfaceVariant: hslToHex(h, variantSaturation, 30),
+            outline: hslToHex(h, variantSaturation, 48),
+            outlineVariant: hslToHex(h, variantSaturation, 80),
+            exhale: hslToHex(h - 58, isNeutral ? 0 : clamp(s, 38, 65), 38)
+        };
+    }
+
+    function applyPrimaryColor(color) {
+        const nextColor = normalizeHex(color);
+        if (!nextColor) return;
+        primaryColor = nextColor;
+        const palette = createMaterialPalette(primaryColor, document.body.classList.contains('dark-mode'));
+        palette.primary = primaryColor;
+        palette.onPrimary = onColorFor(primaryColor);
+        const rootStyle = document.body.style;
+        const roles = {
+            '--md-sys-color-primary': palette.primary,
+            '--md-sys-color-on-primary': palette.onPrimary,
+            '--md-sys-color-primary-container': palette.primaryContainer,
+            '--md-sys-color-on-primary-container': palette.onPrimaryContainer,
+            '--md-sys-color-secondary': palette.secondary,
+            '--md-sys-color-on-secondary': palette.onSecondary,
+            '--md-sys-color-secondary-container': palette.secondaryContainer,
+            '--md-sys-color-on-secondary-container': palette.onSecondaryContainer,
+            '--md-sys-color-tertiary': palette.tertiary,
+            '--md-sys-color-tertiary-container': palette.tertiaryContainer,
+            '--md-sys-color-on-tertiary-container': palette.onTertiaryContainer,
+            '--md-sys-color-surface': palette.surface,
+            '--md-sys-color-surface-container-low': palette.surfaceLow,
+            '--md-sys-color-surface-container': palette.surfaceContainer,
+            '--md-sys-color-surface-container-high': palette.surfaceHigh,
+            '--md-sys-color-surface-container-highest': palette.surfaceHighest,
+            '--md-sys-color-on-surface': palette.onSurface,
+            '--md-sys-color-on-surface-variant': palette.onSurfaceVariant,
+            '--md-sys-color-outline': palette.outline,
+            '--md-sys-color-outline-variant': palette.outlineVariant,
+            '--orb-color-inhale': palette.primary,
+            '--orb-color-hold': palette.tertiary,
+            '--orb-color-exhale': palette.exhale,
+            '--orb-color-idle': palette.secondary
+        };
+
+        Object.entries(roles).forEach(([role, value]) => rootStyle.setProperty(role, value));
+        if (elements.primaryColorInput && elements.primaryColorInput.value.toLowerCase() !== primaryColor) {
+            elements.primaryColorInput.value = primaryColor;
+        }
+        const customButton = elements.primaryColorInput?.closest('.custom-color-button');
+        let matchesSwatch = false;
+        elements.colorSwatches.forEach(swatch => {
+            const selected = swatch.dataset.color.toLowerCase() === primaryColor;
+            swatch.setAttribute('aria-pressed', String(selected));
+            matchesSwatch ||= selected;
+        });
+        if (customButton) {
+            customButton.classList.toggle('is-selected', !matchesSwatch);
+            customButton.setAttribute('aria-pressed', String(!matchesSwatch));
+        }
+        document.querySelector('meta[name="theme-color"]').content = palette.surface;
+        updateCachedColors();
+        if (!isRunning) drawFrame(null, 0, performance.now());
+    }
 
     // Audio setup
     const beep = new Audio('./tibetan-singing-bowl-54400.mp3');
     beep.preload = 'auto';
 
+    function currentStep() {
+        return session?.currentStep() || null;
+    }
+
+    function visualPhaseList() {
+        if (isRunning && session) return session.visualPhases();
+        const pattern = Model.firstPatternBlock(workingProtocol);
+        return pattern ? Model.activePhases(pattern.phases) : [];
+    }
+
     function playBeep(phaseType = 'default') {
+        if (suppressPhaseAudio) return;
         beep.currentTime = 0;
         
         // Force the browser to NOT preserve pitch so the tone actually changes
@@ -213,10 +572,44 @@ document.addEventListener('DOMContentLoaded', () => {
         beep.play().catch(error => console.log('Audio play prevented:', error));
     }
 
+    function setGuidedPrompt(text, immediate = false) {
+        if (!text || elements.guidedPrompt.textContent === text) return;
+        const transitionId = ++promptTransitionId;
+        elements.guidedPrompt.getAnimations().forEach(animation => animation.cancel());
+
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (immediate || reduceMotion || document.hidden || suppressPhaseAudio || typeof elements.guidedPrompt.animate !== 'function') {
+            elements.guidedPrompt.textContent = text;
+            return;
+        }
+
+        const fadeOut = elements.guidedPrompt.animate([
+            { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' },
+            { opacity: 0, transform: 'translateY(-6px)', filter: 'blur(2px)' }
+        ], {
+            duration: 110,
+            easing: 'cubic-bezier(0.4, 0, 1, 1)',
+            fill: 'forwards'
+        });
+
+        fadeOut.finished.then(() => {
+            if (transitionId !== promptTransitionId) return;
+            elements.guidedPrompt.textContent = text;
+            elements.guidedPrompt.animate([
+                { opacity: 0, transform: 'translateY(8px)', filter: 'blur(2px)' },
+                { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' }
+            ], {
+                duration: 240,
+                easing: 'cubic-bezier(0.05, 0.7, 0.1, 1)',
+                fill: 'both'
+            });
+        }).catch(() => {});
+    }
+
     // --- CANVAS VISUALIZER LOGIC ---
 
     function resizeCanvas() {
-        const wrapper = document.querySelector('.visualizer-wrapper');
+        const wrapper = elements.visualizerWrapper;
         const dpr = window.devicePixelRatio || 1;
         elements.canvas.width = wrapper.clientWidth * dpr;
         elements.canvas.height = wrapper.clientHeight * dpr;
@@ -231,26 +624,41 @@ document.addEventListener('DOMContentLoaded', () => {
             hold: getComputedStyle(root).getPropertyValue('--orb-color-hold').trim(),
             exhale: getComputedStyle(root).getPropertyValue('--orb-color-exhale').trim(),
             idle: getComputedStyle(root).getPropertyValue('--orb-color-idle').trim(),
-            glassBorder: getComputedStyle(root).getPropertyValue('--glass-border').trim(),
+            glassBorder: getComputedStyle(root).getPropertyValue('--md-sys-color-outline-variant').trim(),
         };
     }
 
     function generateVertices(activeStepsCount, cx, cy, r) {
-        const vertices = [];
+        if (activeStepsCount <= 1) return [{ x: cx, y: cy }];
         if (activeStepsCount === 2) {
-            vertices.push({ x: cx, y: cy + r });
-            vertices.push({ x: cx, y: cy - r });
-        } else if (activeStepsCount === 3) {
-            vertices.push({ x: cx - r * 0.866, y: cy + r * 0.5 });
-            vertices.push({ x: cx, y: cy - r });
-            vertices.push({ x: cx + r * 0.866, y: cy + r * 0.5 });
-        } else if (activeStepsCount === 4) {
-            vertices.push({ x: cx - r, y: cy + r });
-            vertices.push({ x: cx - r, y: cy - r });
-            vertices.push({ x: cx + r, y: cy - r });
-            vertices.push({ x: cx + r, y: cy + r });
-        } else {
-            vertices.push({ x: cx, y: cy });
+            return [
+                { x: cx, y: cy + r },
+                { x: cx, y: cy - r }
+            ];
+        }
+        if (activeStepsCount === 3) {
+            return [
+                { x: cx - r * 0.866, y: cy + r * 0.5 },
+                { x: cx, y: cy - r },
+                { x: cx + r * 0.866, y: cy + r * 0.5 }
+            ];
+        }
+        if (activeStepsCount === 4) {
+            return [
+                { x: cx - r, y: cy + r },
+                { x: cx - r, y: cy - r },
+                { x: cx + r, y: cy - r },
+                { x: cx + r, y: cy + r }
+            ];
+        }
+
+        const vertices = [];
+        for (let i = 0; i < activeStepsCount; i++) {
+            const angle = -Math.PI / 2 + (i * 2 * Math.PI) / activeStepsCount;
+            vertices.push({
+                x: cx + r * Math.cos(angle),
+                y: cy + r * Math.sin(angle)
+            });
         }
         return vertices;
     }
@@ -268,11 +676,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ctx.clearRect(0, 0, w, h);
 
-        let activeSteps;
-        if (isWimHof) {
-             activeSteps = whmSteps;
-        } else {
-             activeSteps = steps.filter(s => s.duration() > 0);
+        const activeSteps = visualPhaseList();
+        if (activeSteps.length === 0 && isRunning) {
+            const step = currentStep();
+            if (step) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+                ctx.fillStyle = cachedColors[step.colorKey] || cachedColors.idle;
+                ctx.shadowColor = ctx.fillStyle;
+                ctx.shadowBlur = 15;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+            return;
         }
 
         if (activeSteps.length === 0) return;
@@ -299,19 +715,26 @@ document.addEventListener('DOMContentLoaded', () => {
         let currentColor = cachedColors.idle;
 
         if (!isRunning) {
-            // Idle animation
+            const accent = cachedColors.inhale || cachedColors.idle;
             const pulse = 1 + Math.sin(idleTime / 500) * 0.1;
             ctx.beginPath();
             ctx.arc(cx, cy, 20 * pulse, 0, Math.PI * 2);
-            ctx.fillStyle = cachedColors.idle;
-            ctx.shadowColor = cachedColors.idle;
+            ctx.fillStyle = accent;
+            ctx.shadowColor = accent;
             ctx.shadowBlur = 15;
             ctx.fill();
             ctx.shadowBlur = 0;
             return;
         }
 
-        const activeIndex = activeSteps.indexOf(step);
+        const activeStep = step || currentStep();
+        const activeIndex = (() => {
+            if (!isRunning || !session || !activeStep) return -1;
+            const block = session.currentBlock();
+            if (!block || block.type !== 'pattern') return -1;
+            const phase = block.phases[session.cursor.phaseIndex];
+            return phase ? activeSteps.findIndex(item => item.id === phase.id) : -1;
+        })();
         if (activeIndex !== -1 && vertices.length > 1) {
             const start = vertices[activeIndex];
             const end = vertices[(activeIndex + 1) % vertices.length];
@@ -319,12 +742,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const easedProgress = easeInOutSine(progress);
             bx = start.x + (end.x - start.x) * easedProgress;
             by = start.y + (end.y - start.y) * easedProgress;
-            currentColor = cachedColors[step.colorKey];
-        } else if (vertices.length === 1) {
-             currentColor = cachedColors[step.colorKey];
+            currentColor = cachedColors[activeStep.colorKey];
+        } else if (activeStep) {
+             currentColor = cachedColors[activeStep.colorKey] || cachedColors.idle;
         }
 
-        // Draw glowing ball
+        // Draw only the progress marker; the geometric track remains the focal point.
         ctx.beginPath();
         ctx.arc(bx, by, 15, 0, Math.PI * 2);
         ctx.fillStyle = currentColor;
@@ -347,16 +770,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isPaused) {
             stepStartTime += (time - lastTime); 
             lastTime = time;
-            drawFrame(isWimHof ? whmSteps[wimHofStepIndex] : steps[currentStep], lastProgress); 
+            drawFrame(currentStep(), lastProgress); 
             animationFrameId = requestAnimationFrame(renderLoop);
             return;
         }
 
-        if (isWimHof) {
-             processWimHofPhase(time);
-        } else {
-             processStandardPhase(time);
-        }
+        processTimerAt(time);
 
         if (isRunning) updateTotalTime(time);
 
@@ -364,94 +783,51 @@ document.addEventListener('DOMContentLoaded', () => {
         animationFrameId = requestAnimationFrame(renderLoop);
     }
 
-    function processStandardPhase(time) {
-        let step = steps[currentStep];
-        
-        // Skip 0 duration steps
-        while (step && step.duration() === 0) {
-            advanceStandardStep(time);
-            step = steps[currentStep];
-            if (!isRunning || isWimHof) return;
-        }
+    function currentPhaseIsComplete(time) {
+        const step = currentStep();
+        if (!step) return false;
+        const duration = step.duration();
+        return duration === 0 || time - stepStartTime >= duration * 1000;
+    }
 
-        if (!step) return;
+    function processTimerAt(time, catchUp = false) {
+        let caughtUp = false;
+        let transitions = 0;
 
-        let elapsed = (time - stepStartTime) / 1000;
-        let progress = elapsed / step.duration();
+        do {
+            suppressPhaseAudio = catchUp && currentPhaseIsComplete(time);
+            caughtUp ||= suppressPhaseAudio;
+            processPhase(time);
+            transitions++;
+        } while (
+            catchUp && isRunning && !isPaused &&
+            currentPhaseIsComplete(time) && transitions < 2000
+        );
 
-        let timeRemaining = Math.ceil(step.duration() - elapsed);
-        if (timeRemaining < 0) timeRemaining = 0;
-        if (elements.phaseTime.textContent !== String(timeRemaining)) {
-            elements.phaseTime.textContent = timeRemaining;
-        }
-
-        if (progress >= 1) {
-            progress = 1;
-            drawFrame(step, progress);
-            advanceStandardStep(time);
-        } else {
-            drawFrame(step, progress);
-            lastProgress = progress;
+        suppressPhaseAudio = false;
+        if (caughtUp && isRunning) {
+            const step = currentStep();
+            if (step) playBeep(step.colorKey);
         }
     }
 
-    function advanceStandardStep(time) {
-        currentStep++;
-        
-        if (currentStep >= steps.length) {
-            currentStep = 0;
-            currentCycle++;
-            updateRemainingCycles();
-            updateTotalTime();
-            
-            if (currentCycle >= totalCycles) {
-                if (elements.presetSelect.value === 'wim_hof') {
-                    isWimHof = true;
-                    wimHofStepIndex = 0;
-                    setupWimHofSteps();
-                    stepStartTime = time; 
-                    playBeep(whmSteps[0].colorKey);
-                    elements.guidedPrompt.textContent = translations[currentLanguage][whmSteps[0].textKey];
-                    return;
-                } else {
-                    finishSession();
-                    return;
-                }
-            }
-        }
-        
-        const newStep = steps[currentStep];
-        if (newStep && newStep.duration() > 0) {
-            elements.guidedPrompt.textContent = translations[currentLanguage][newStep.textKey];
-            playBeep(newStep.colorKey);
-        }
-        
-        stepStartTime = time;
-        lastProgress = 0;
-    }
-
-    // --- WIM HOF SPECIFIC PHASE LOGIC ---
-
-    function setupWimHofSteps() {
-        whmSteps = [
-            { textKey: 'holdBreath', text: 'Hold', colorKey: 'hold', duration: () => originalWhmHold + currentWhmRound * parseInt(elements.whmIncreaseInput.value) },
-            { textKey: 'holdBreath', text: 'Final Pause', colorKey: 'idle', duration: () => parseInt(elements.finalPauseInput.value) },
-            { textKey: 'breatheIn', text: 'Inhale and Hold', colorKey: 'inhale', duration: () => parseInt(elements.finalInhaleInput.value) },
-            { textKey: 'holdBreath', text: 'Final Pause 2', colorKey: 'idle', duration: () => parseInt(elements.finalPause2Input.value) }
-        ];
-    }
-
-    function processWimHofPhase(time) {
-        const step = whmSteps[wimHofStepIndex];
+    function processPhase(time) {
+        const step = currentStep();
         if (!step) {
-             finishSession();
-             return;
+            finishSession();
+            return;
         }
 
-        let elapsed = (time - stepStartTime) / 1000;
-        let progress = elapsed / step.duration();
+        const duration = step.duration();
+        if (duration <= 0) {
+            const result = session.advance();
+            if (result.done) finishSession();
+            return;
+        }
 
-        let timeRemaining = Math.ceil(step.duration() - elapsed);
+        const elapsed = (time - stepStartTime) / 1000;
+        let progress = elapsed / duration;
+        let timeRemaining = Math.ceil(duration - elapsed);
         if (timeRemaining < 0) timeRemaining = 0;
         if (elements.phaseTime.textContent !== String(timeRemaining)) {
             elements.phaseTime.textContent = timeRemaining;
@@ -460,37 +836,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (progress >= 1) {
             progress = 1;
             drawFrame(step, progress);
-            
-            wimHofStepIndex++;
-            if (wimHofStepIndex >= whmSteps.length) {
-                currentWhmRound++;
-                if (currentWhmRound >= totalWhmRounds) {
-                    finishSession();
-                } else {
-                    // Reset to standard breathing loop
-                    isWimHof = false;
-                    currentCycle = 0;
-                    currentStep = 0;
-                    
-                    // Skip any 0 duration steps at the start
-                    while(steps[currentStep] && steps[currentStep].duration() <= 0) {
-                        currentStep++;
-                    }
-                    
-                    elements.guidedPrompt.textContent = translations[currentLanguage][steps[currentStep].textKey];
-                    playBeep(steps[currentStep].colorKey);
-                    stepStartTime = time;
-                    lastProgress = 0;
-                    updateTotalTime();
-                    updateRemainingCycles();
-                }
+            const completedAt = stepStartTime + duration * 1000;
+            const result = session.advance();
+            if (result.done) {
+                finishSession();
                 return;
             }
-            
-            elements.guidedPrompt.textContent = translations[currentLanguage][whmSteps[wimHofStepIndex].textKey];
-            playBeep(whmSteps[wimHofStepIndex].colorKey);
-            stepStartTime = time;
+            const nextStep = currentStep();
+            if (nextStep && nextStep.duration() > 0) {
+                setGuidedPrompt(translations[currentLanguage][nextStep.textKey]);
+                playBeep(nextStep.colorKey);
+            }
+            stepStartTime = completedAt;
             lastProgress = 0;
+            updateRemainingCycles();
+            updateTotalTime();
         } else {
             drawFrame(step, progress);
             lastProgress = progress;
@@ -504,32 +864,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isRunning) return;
 
         // Hide settings offcanvas if open
-        const offcanvasElement = document.getElementById('settingsOffcanvas');
-        if (offcanvasElement) {
-            const bsOffcanvas = window.bootstrap?.Offcanvas.getInstance(offcanvasElement);
-            if (bsOffcanvas) {
-                bsOffcanvas.hide();
-            }
-        }
+        ['appearanceOffcanvas', 'breathingOffcanvas'].forEach(id => {
+            const offcanvasElement = document.getElementById(id);
+            const bsOffcanvas = offcanvasElement && window.bootstrap?.Offcanvas.getInstance(offcanvasElement);
+            if (bsOffcanvas) bsOffcanvas.hide();
+        });
 
+        session = Model.createSession(workingProtocol);
+        sessionCompleted = false;
+        isPaused = false;
+        stepStartTime = performance.now();
+        lastTime = stepStartTime;
+        lastProgress = 0;
+        isRunning = true;
+        document.body.classList.add('session-active');
         resizeCanvas();
         updateCachedColors();
-
-        isRunning = true;
-        isPaused = false;
-        isWimHof = false;
-        sessionCompleted = false;
-        currentStep = 0;
-        currentCycle = 0;
-        totalCycles = parseInt(elements.cyclesInput.value);
-        
-        currentWhmRound = 0;
-        if (elements.presetSelect.value === 'wim_hof') {
-            totalWhmRounds = parseInt(elements.whmRoundsInput.value);
-            originalWhmHold = parseInt(elements.holdInput.value); // Store base hold
-        } else {
-            totalWhmRounds = 1;
-        }
+        elements.visualizerWrapper.classList.remove('session-complete', 'is-paused');
 
         elements.startButton.classList.add('d-none');
         elements.stopButton.classList.remove('d-none');
@@ -537,27 +888,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateRemainingCycles();
         updateTotalTime();
-        
-        while(steps[currentStep] && steps[currentStep].duration() <= 0) {
-             currentStep++;
-        }
-        
-        if (steps[currentStep]) {
-             elements.guidedPrompt.textContent = translations[currentLanguage][steps[currentStep].textKey];
-             playBeep(steps[currentStep].colorKey);
+
+        const firstStep = currentStep();
+        if (firstStep) {
+             setGuidedPrompt(translations[currentLanguage][firstStep.textKey]);
+             playBeep(firstStep.colorKey);
         } else {
              playBeep();
         }
 
         stepStartTime = performance.now();
         lastTime = stepStartTime;
+        updateTimerExecutionMode();
     }
 
     function restoreIdleControls() {
+        document.body.classList.remove('session-active');
         elements.startButton.classList.remove('d-none');
         elements.stopButton.classList.add('d-none');
         elements.pauseButton.classList.add('d-none');
-        elements.pauseButton.textContent = translations[currentLanguage]?.pause || 'Pause';
+        setPauseControl(false);
         elements.pauseButton.classList.remove('btn-primary');
         elements.pauseButton.classList.add('btn-warning');
     }
@@ -567,8 +917,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         isRunning = false;
         isPaused = false;
-        isWimHof = false;
         sessionCompleted = false;
+        session = null;
+        elements.visualizerWrapper.classList.remove('session-complete', 'is-paused');
+        stopBackgroundTimer();
         restoreIdleControls();
 
         updateRemainingCycles();
@@ -579,10 +931,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function finishSession() {
         isRunning = false;
         isPaused = false;
-        isWimHof = false;
+        session = null;
         sessionCompleted = true;
+        elements.visualizerWrapper.classList.remove('is-paused');
+        elements.visualizerWrapper.classList.add('session-complete');
+        stopBackgroundTimer();
         restoreIdleControls();
-        elements.guidedPrompt.textContent = translations[currentLanguage]?.complete || 'Session complete';
+        setGuidedPrompt(translations[currentLanguage]?.complete || 'Session complete');
         elements.phaseTime.textContent = '';
         updateRemainingCycles();
         updateTimeDisplay(0, true);
@@ -592,7 +947,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function pause() {
         if (!isRunning || isPaused) return;
         isPaused = true;
-        elements.pauseButton.textContent = translations[currentLanguage]?.resume || 'Resume';
+        elements.visualizerWrapper.classList.add('is-paused');
+        stopBackgroundTimer();
+        setPauseControl(true);
         elements.pauseButton.classList.remove('btn-warning');
         elements.pauseButton.classList.add('btn-primary');
     }
@@ -600,13 +957,61 @@ document.addEventListener('DOMContentLoaded', () => {
     function resume() {
         if (!isPaused) return;
         isPaused = false;
-        elements.pauseButton.textContent = translations[currentLanguage]?.pause || 'Pause';
+        elements.visualizerWrapper.classList.remove('is-paused');
+        setPauseControl(false);
         elements.pauseButton.classList.remove('btn-primary');
         elements.pauseButton.classList.add('btn-warning');
+        updateTimerExecutionMode();
+    }
+
+    function toggleSessionPause() {
+        if (!isRunning) return;
+        if (isPaused) resume();
+        else pause();
+    }
+
+    function runBackgroundTick() {
+        if (!isRunning || isPaused) return;
+
+        const time = performance.now();
+        processTimerAt(time, true);
+
+        if (isRunning) updateTotalTime(time);
+        lastTime = time;
+    }
+
+    function startBackgroundTimer() {
+        if (backgroundTimerId !== null || !isRunning || isPaused) return;
+        backgroundTimerId = window.setInterval(runBackgroundTick, 250);
+    }
+
+    function stopBackgroundTimer() {
+        if (backgroundTimerId === null) return;
+        window.clearInterval(backgroundTimerId);
+        backgroundTimerId = null;
+    }
+
+    function updateTimerExecutionMode() {
+        if (document.hidden) {
+            if (animationFrameId !== null) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            startBackgroundTimer();
+            return;
+        }
+
+        stopBackgroundTimer();
+        if (animationFrameId === null) {
+            const time = performance.now();
+            if (isRunning && !isPaused) processTimerAt(time, true);
+            lastTime = time;
+            animationFrameId = requestAnimationFrame(renderLoop);
+        }
     }
 
     function resetDisplay() {
-        elements.guidedPrompt.textContent = translations[currentLanguage]?.ready || 'Ready to breathe';
+        setGuidedPrompt(translations[currentLanguage]?.ready || 'Ready to breathe');
         elements.phaseTime.textContent = '';
         drawFrame(null, 0, performance.now());
     }
@@ -624,143 +1029,701 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function durationOf(stepList, startIndex = 0) {
-        return stepList.slice(startIndex).reduce((sum, step) => sum + step.duration(), 0);
-    }
-
-    function remainingInCurrentStep(time, step) {
-        if (!isRunning || !step) return step?.duration() || 0;
-        const elapsed = Math.max(0, (time - stepStartTime) / 1000);
-        return Math.max(0, step.duration() - elapsed);
-    }
-
-    function remainingBreathingTime(time) {
-        const cycleDuration = durationOf(steps);
-        if (!isRunning) return cycleDuration * parseInt(elements.cyclesInput.value);
-
-        const currentStepRemaining = remainingInCurrentStep(time, steps[currentStep]);
-        const laterSteps = durationOf(steps, currentStep + 1);
-        const laterCycles = Math.max(0, totalCycles - currentCycle - 1) * cycleDuration;
-        return currentStepRemaining + laterSteps + laterCycles;
-    }
-
     function updateTotalTime(time = performance.now()) {
         if (sessionCompleted) {
             updateTimeDisplay(0, true);
             return;
         }
 
-        if (elements.presetSelect.value !== 'wim_hof') {
-            updateTimeDisplay(remainingBreathingTime(time));
+        if (isRunning && session) {
+            updateTimeDisplay(session.remainingSeconds(time, stepStartTime));
             return;
         }
 
-        let totalSeconds = 0;
-        const totalRounds = parseInt(elements.whmRoundsInput.value);
-        const roundIndex = isRunning ? currentWhmRound : 0;
-        const baseHold = isRunning && originalWhmHold > 0
-            ? originalWhmHold
-            : parseInt(elements.holdInput.value);
-        const increase = parseInt(elements.whmIncreaseInput.value);
-        const staticTime = parseInt(elements.finalPauseInput.value)
-            + parseInt(elements.finalInhaleInput.value)
-            + parseInt(elements.finalPause2Input.value);
-        const breathsPerRound = durationOf(steps) * parseInt(elements.cyclesInput.value);
-
-        if (!isRunning) {
-            for (let round = 0; round < totalRounds; round++) {
-                totalSeconds += breathsPerRound + baseHold + round * increase + staticTime;
-            }
-        } else if (!isWimHof) {
-            totalSeconds += remainingBreathingTime(time) + baseHold + roundIndex * increase + staticTime;
-        } else {
-            totalSeconds += remainingInCurrentStep(time, whmSteps[wimHofStepIndex]);
-            totalSeconds += durationOf(whmSteps, wimHofStepIndex + 1);
-        }
-
-        if (isRunning) {
-            for (let round = roundIndex + 1; round < totalRounds; round++) {
-                totalSeconds += breathsPerRound + baseHold + round * increase + staticTime;
-            }
-        }
-
-        updateTimeDisplay(totalSeconds);
+        updateTimeDisplay(Model.protocolDuration(workingProtocol));
     }
 
     function updateRemainingCycles() {
+        const t = translations[currentLanguage] || {};
+        const holdingText = t.holding || 'Holding...';
         if (sessionCompleted) {
-            const label = elements.presetSelect.value === 'wim_hof'
+            const label = Model.protocolHasMultipleStages(workingProtocol)
                 ? (currentLanguage === 'en' ? 'Rounds Remaining' : (currentLanguage === 'es' ? 'Rondas Restantes' : 'Cycles Restants'))
-                : (translations[currentLanguage]?.remainingCycles?.split(':')[0] || 'Remaining Cycles');
+                : (t.remainingCycles?.split(':')[0] || 'Remaining Cycles');
             elements.remainingCyclesDisplay.textContent = `${label}: 0`;
             return;
         }
-        if (elements.presetSelect.value === 'wim_hof') {
+
+        const info = isRunning && session
+            ? session.progressInfo()
+            : {
+                round: 1,
+                totalRounds: workingProtocol.rounds,
+                remainingCycles: Model.firstPatternBlock(workingProtocol)?.cycles || 0,
+                inRetention: false,
+                inPattern: true,
+                multiRound: Model.protocolHasMultipleStages(workingProtocol)
+            };
+
+        if (info.multiRound) {
             const roundText = currentLanguage === 'en' ? 'Round' : (currentLanguage === 'es' ? 'Ronda' : 'Cycle');
-            const currentR = isRunning ? currentWhmRound + 1 : 1;
-            const totRounds = elements.whmRoundsInput.value;
-            
-            if (isWimHof) {
-                elements.remainingCyclesDisplay.textContent = `${roundText}: ${currentR}/${totRounds} | Holding...`;
+            if (!info.inPattern) {
+                elements.remainingCyclesDisplay.textContent = `${roundText}: ${info.round}/${info.totalRounds} | ${holdingText}`;
             } else {
-                const remainingBreaths = Math.max(0, parseInt(elements.cyclesInput.value) - currentCycle);
                 const breathText = currentLanguage === 'en' ? 'Breaths' : (currentLanguage === 'es' ? 'Resp.' : 'Resp.');
-                elements.remainingCyclesDisplay.textContent = `${roundText}: ${currentR}/${totRounds} | ${breathText}: ${remainingBreaths}`;
+                elements.remainingCyclesDisplay.textContent = `${roundText}: ${info.round}/${info.totalRounds} | ${breathText}: ${info.remainingCycles}`;
             }
+            return;
+        }
+
+        const remainingText = t.remainingCycles?.split(':')[0] || 'Remaining Cycles';
+        elements.remainingCyclesDisplay.textContent = `${remainingText}: ${info.remainingCycles}`;
+    }
+
+    function setPauseControl(paused) {
+        const icon = elements.pauseButton.querySelector('i');
+        const label = elements.pauseButton.querySelector('.control-label');
+        if (icon) icon.className = paused ? 'bi bi-play-fill' : 'bi bi-pause-fill';
+        if (label) {
+            label.textContent = paused
+                ? (translations[currentLanguage]?.resume || 'Resume')
+                : (translations[currentLanguage]?.pause || 'Pause');
+            label.setAttribute('data-lang-key', paused ? 'resume' : 'pause');
+        }
+        elements.pauseButton.setAttribute('aria-label', label?.textContent || (paused ? 'Resume' : 'Pause'));
+    }
+
+    function protocolDisplayName(protocol) {
+        if (protocol.nameKey && translations[currentLanguage]?.[protocol.nameKey]) {
+            return translations[currentLanguage][protocol.nameKey];
+        }
+        return protocol.name || translations[currentLanguage]?.custom || 'Custom';
+    }
+
+    function formatBlockSummary(blockSummary) {
+        const t = translations[currentLanguage] || {};
+        if (blockSummary.kind === 'retention') {
+            const hold = t.holdBlock || 'Hold';
+            return blockSummary.increasePerRound
+                ? `${hold} ${blockSummary.duration}+${blockSummary.increasePerRound}`
+                : `${hold} ${blockSummary.duration}`;
+        }
+        if (blockSummary.kind === 'ref') {
+            const name = (blockSummary.nameKey && t[blockSummary.nameKey]) || blockSummary.name;
+            return (t.usesExercise || 'Uses {name}').replace('{name}', name);
+        }
+        if (blockSummary.phases?.length) {
+            return `${blockSummary.phases.join(' · ')} × ${blockSummary.cycles}`;
+        }
+        return `${blockSummary.cycles} ${t.cycles || 'cycles'}`;
+    }
+
+    function syncPracticeSummary() {
+        elements.selectedPresetName.textContent = protocolDisplayName(workingProtocol);
+        const summary = Model.summaryParts(workingProtocol);
+        if (summary.kind === 'protocol') {
+            const parts = summary.blocks.map(formatBlockSummary);
+            if (summary.rounds > 1) parts.push(`${summary.rounds} ${currentLanguage === 'es' ? 'rondas' : (currentLanguage === 'fr' ? 'cycles' : 'rounds')}`);
+            elements.practiceSummary.textContent = parts.join(' · ');
+            return;
+        }
+        elements.practiceSummary.textContent = `${summary.phases.join(' · ')} · ${summary.cycles} cycles`;
+    }
+
+    function refreshPresetSelect() {
+        const t = translations[currentLanguage] || {};
+        const library = Model.loadUserLibrary();
+        const currentValue = selectedProtocolId;
+        elements.presetSelect.innerHTML = '';
+
+        const builtinGroup = document.createElement('optgroup');
+        builtinGroup.label = t.builtinsGroup || 'Built-in';
+        Model.PRESET_IDS.forEach(id => {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = t[id] || Model.builtins[id].name;
+            builtinGroup.appendChild(option);
+        });
+        elements.presetSelect.appendChild(builtinGroup);
+
+        if (library.length) {
+            const userGroup = document.createElement('optgroup');
+            userGroup.label = t.myExercises || 'My exercises';
+            library.forEach(protocol => {
+                const option = document.createElement('option');
+                option.value = protocol.id;
+                option.textContent = protocol.name;
+                userGroup.appendChild(option);
+            });
+            elements.presetSelect.appendChild(userGroup);
+        }
+
+        if ([...elements.presetSelect.options].some(option => option.value === currentValue)) {
+            elements.presetSelect.value = currentValue;
         } else {
-            const remainingText = translations[currentLanguage]?.remainingCycles?.split(':')[0] || 'Remaining Cycles';
-            elements.remainingCyclesDisplay.textContent = `${remainingText}: ${Math.max(0, parseInt(elements.cyclesInput.value) - currentCycle)}`;
+            elements.presetSelect.value = 'custom';
+            selectedProtocolId = 'custom';
         }
     }
 
-    function translatePage() {
-        // Toggle Cycles label based on preset
-        if (elements.presetSelect.value === 'wim_hof') {
-            elements.cyclesLabel.setAttribute('data-lang-key', 'numberBreaths');
-        } else {
-            elements.cyclesLabel.setAttribute('data-lang-key', 'cycles');
+    function phaseTypeLabel(type) {
+        const t = translations[currentLanguage] || {};
+        return t[`${type}Type`] || type;
+    }
+
+    function iconButton(icon, label, disabled = false) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-icon';
+        button.innerHTML = `<i class="bi ${icon}" aria-hidden="true"></i>`;
+        button.setAttribute('aria-label', label);
+        button.disabled = disabled;
+        return button;
+    }
+
+    function labeledActionButton(icon, text, aria, disabled = false) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn block-action-btn';
+        button.innerHTML = `<i class="bi ${icon}" aria-hidden="true"></i><span>${text}</span>`;
+        button.setAttribute('aria-label', aria || text);
+        button.title = aria || text;
+        button.disabled = disabled;
+        return button;
+    }
+
+    function stepTitle(index, label, t) {
+        const title = document.createElement('div');
+        title.className = 'block-card-title';
+        const step = document.createElement('button');
+        step.type = 'button';
+        step.className = 'block-step-index';
+        step.textContent = (t.stepLabel || 'Step {n}').replace('{n}', String(index + 1));
+        const name = document.createElement('span');
+        name.className = 'block-step-name';
+        name.textContent = label;
+        title.append(step, name);
+        return title;
+    }
+
+    function collapsedSummaryFor(block, t) {
+        if (block.type === 'retention') {
+            return formatBlockSummary({
+                kind: 'retention',
+                duration: block.duration,
+                increasePerRound: block.increasePerRound
+            });
+        }
+        if (block.type === 'ref') {
+            const nested = Model.resolveRef(block);
+            const name = nested ? protocolDisplayName(nested) : block.protocolId;
+            const nestedSummary = nested ? Model.summaryParts(nested) : null;
+            const include = (t.includesExercise || 'Includes {name}').replace('{name}', name);
+            if (nestedSummary?.kind === 'pattern') {
+                return `${include} · ${nestedSummary.phases.join(' · ')} × ${nestedSummary.cycles}`;
+            }
+            return include;
+        }
+        const phases = Model.activePhases(block.phases).map(phase => phase.duration);
+        return `${phases.join(' · ')} × ${block.cycles}`;
+    }
+
+    function applyCollapsedState(card, block, t) {
+        const collapsed = collapsedBlockIds.has(block.id);
+        card.classList.toggle('is-collapsed', collapsed);
+        const toggle = card.querySelector('.block-step-index');
+        if (toggle) {
+            toggle.setAttribute('aria-expanded', String(!collapsed));
+            toggle.setAttribute('aria-label', collapsed
+                ? (t.expandStep || 'Expand step')
+                : (t.collapseStep || 'Collapse step'));
+        }
+    }
+
+    function wireCardCollapse(card, block, t, body) {
+        body.classList.add('block-card-body');
+        const summary = document.createElement('p');
+        summary.className = 'block-collapsed-summary';
+        summary.textContent = collapsedSummaryFor(block, t);
+        const toggle = card.querySelector('.block-step-index');
+        if (toggle) {
+            const onToggle = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (collapsedBlockIds.has(block.id)) collapsedBlockIds.delete(block.id);
+                else collapsedBlockIds.add(block.id);
+                applyCollapsedState(card, block, t);
+            };
+            toggle.addEventListener('click', onToggle);
+        }
+        card.append(summary, body);
+        applyCollapsedState(card, block, t);
+    }
+
+    function renderLinkedPreview(nested, t) {
+        const preview = document.createElement('div');
+        preview.className = 'linked-preview';
+        const caption = document.createElement('div');
+        caption.className = 'linked-preview-label';
+        caption.textContent = nested
+            ? (t.insideExercise || 'Inside {name}').replace('{name}', protocolDisplayName(nested))
+            : (t.previewReadOnly || 'Preview');
+        preview.appendChild(caption);
+
+        if (!nested) return preview;
+
+        const summary = Model.summaryParts(nested);
+        if (summary.kind === 'pattern') {
+            const chips = document.createElement('div');
+            chips.className = 'linked-preview-chips';
+            const pattern = nested.blocks.find(item => item.type === 'pattern');
+            (pattern?.phases || []).forEach(phase => {
+                const chip = document.createElement('span');
+                chip.className = `linked-chip phase-${phase.type}`;
+                chip.textContent = `${phaseTypeLabel(phase.type)} ${phase.duration}s`;
+                chips.appendChild(chip);
+            });
+            const cycles = document.createElement('span');
+            cycles.className = 'linked-chip is-cycles';
+            cycles.textContent = `× ${summary.cycles}`;
+            chips.appendChild(cycles);
+            preview.appendChild(chips);
+            return preview;
         }
 
+        const list = document.createElement('ul');
+        list.className = 'linked-preview-list';
+        (summary.blocks || []).forEach(item => {
+            const row = document.createElement('li');
+            row.textContent = formatBlockSummary(item);
+            list.appendChild(row);
+        });
+        preview.appendChild(list);
+        return preview;
+    }
+
+    function renderPhaseRows(block, list) {
+        block.phases.forEach((phase, index) => {
+            const row = document.createElement('div');
+            row.className = `phase-row phase-${phase.type}`;
+
+            const typeSelect = document.createElement('select');
+            typeSelect.className = 'form-select shadow-sm custom-select';
+            typeSelect.setAttribute('aria-label', 'Phase type');
+            Model.PHASE_TYPES.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = phaseTypeLabel(type);
+                if (type === phase.type) option.selected = true;
+                typeSelect.appendChild(option);
+            });
+            typeSelect.addEventListener('change', () => {
+                markAsCustomIfBuiltin();
+                Model.updatePhase(workingProtocol, block.id, phase.id, { type: typeSelect.value });
+                afterProtocolEdit();
+            });
+
+            const durationInput = document.createElement('input');
+            durationInput.type = 'number';
+            durationInput.className = 'form-control shadow-sm custom-input';
+            durationInput.min = '1';
+            durationInput.max = '180';
+            durationInput.value = phase.duration;
+            durationInput.setAttribute('aria-label', `${phaseTypeLabel(phase.type)} (s)`);
+            durationInput.addEventListener('input', () => {
+                markAsCustomIfBuiltin();
+                Model.updatePhase(workingProtocol, block.id, phase.id, { duration: durationInput.value });
+                afterProtocolEdit(false);
+            });
+            durationInput.addEventListener('change', () => {
+                const value = Number(durationInput.value);
+                durationInput.value = Number.isFinite(value) ? Math.min(180, Math.max(1, value)) : 4;
+                markAsCustomIfBuiltin();
+                Model.updatePhase(workingProtocol, block.id, phase.id, { duration: durationInput.value });
+                afterProtocolEdit();
+            });
+
+            const actions = document.createElement('div');
+            actions.className = 'phase-row-actions';
+            const upButton = iconButton('bi-chevron-up', 'Move phase up', index === 0);
+            upButton.addEventListener('click', () => {
+                markAsCustomIfBuiltin();
+                Model.movePhase(workingProtocol, block.id, phase.id, -1);
+                afterProtocolEdit();
+            });
+            const downButton = iconButton('bi-chevron-down', 'Move phase down', index === block.phases.length - 1);
+            downButton.addEventListener('click', () => {
+                markAsCustomIfBuiltin();
+                Model.movePhase(workingProtocol, block.id, phase.id, 1);
+                afterProtocolEdit();
+            });
+            const removeButton = iconButton('bi-dash-lg', 'Remove phase', block.phases.length <= 1);
+            removeButton.addEventListener('click', () => {
+                markAsCustomIfBuiltin();
+                Model.removePhase(workingProtocol, block.id, phase.id);
+                afterProtocolEdit();
+            });
+            actions.append(upButton, downButton, removeButton);
+            row.append(typeSelect, durationInput, actions);
+            list.appendChild(row);
+        });
+    }
+
+    function renderBlockActions(block, index, t) {
+        const actions = document.createElement('div');
+        actions.className = 'block-card-actions';
+        const upButton = labeledActionButton(
+            'bi-arrow-up',
+            t.moveUp || 'Up',
+            t.moveUp || 'Move step up',
+            index === 0
+        );
+        upButton.addEventListener('click', () => {
+            markAsCustomIfBuiltin();
+            Model.moveBlock(workingProtocol, block.id, -1);
+            afterProtocolEdit();
+        });
+        const downButton = labeledActionButton(
+            'bi-arrow-down',
+            t.moveDown || 'Down',
+            t.moveDown || 'Move step down',
+            index === workingProtocol.blocks.length - 1
+        );
+        downButton.addEventListener('click', () => {
+            markAsCustomIfBuiltin();
+            Model.moveBlock(workingProtocol, block.id, 1);
+            afterProtocolEdit();
+        });
+        const removeButton = labeledActionButton(
+            'bi-trash3',
+            t.removeStep || 'Remove',
+            t.removeStep || 'Remove step',
+            workingProtocol.blocks.length <= 1
+        );
+        removeButton.addEventListener('click', () => {
+            markAsCustomIfBuiltin();
+            Model.removeBlock(workingProtocol, block.id);
+            afterProtocolEdit();
+        });
+        actions.append(upButton, downButton, removeButton);
+        return actions;
+    }
+
+    function renderPatternCard(block, index, t) {
+        const card = document.createElement('div');
+        card.className = 'block-card is-pattern';
+        const header = document.createElement('div');
+        header.className = 'block-card-header';
+        const title = stepTitle(index, t.patternBlock || 'Pattern', t);
+        header.append(title, renderBlockActions(block, index, t));
+        card.appendChild(header);
+
+        const body = document.createElement('div');
+        const cyclesGroup = document.createElement('div');
+        cyclesGroup.className = 'form-group mb-3';
+        const cyclesLabel = document.createElement('label');
+        cyclesLabel.className = 'form-label small';
+        cyclesLabel.textContent = t.cycles || 'Cycles';
+        const cyclesInput = document.createElement('input');
+        cyclesInput.type = 'number';
+        cyclesInput.className = 'form-control shadow-sm custom-input';
+        cyclesInput.min = '1';
+        cyclesInput.max = '100';
+        cyclesInput.value = block.cycles;
+        cyclesInput.addEventListener('input', () => {
+            markAsCustomIfBuiltin();
+            Model.setPatternCycles(workingProtocol, block.id, cyclesInput.value);
+            afterProtocolEdit(false);
+        });
+        cyclesInput.addEventListener('change', () => {
+            const value = Number(cyclesInput.value);
+            cyclesInput.value = Number.isFinite(value) ? Math.min(100, Math.max(1, value)) : 1;
+            markAsCustomIfBuiltin();
+            Model.setPatternCycles(workingProtocol, block.id, cyclesInput.value);
+            afterProtocolEdit();
+        });
+        cyclesGroup.append(cyclesLabel, cyclesInput);
+        body.appendChild(cyclesGroup);
+
+        const list = document.createElement('div');
+        list.className = 'phase-list';
+        renderPhaseRows(block, list);
+        body.appendChild(list);
+
+        const addPhase = document.createElement('button');
+        addPhase.type = 'button';
+        addPhase.className = 'btn guide-button w-100';
+        addPhase.innerHTML = `<i class="bi bi-plus-lg" aria-hidden="true"></i> <span>${t.addPhase || 'Add phase'}</span>`;
+        addPhase.disabled = block.phases.length >= Model.MAX_PHASES;
+        addPhase.addEventListener('click', () => {
+            markAsCustomIfBuiltin();
+            Model.addPhase(workingProtocol, block.id);
+            afterProtocolEdit();
+        });
+        body.appendChild(addPhase);
+        wireCardCollapse(card, block, t, body);
+        return card;
+    }
+
+    function renderRetentionCard(block, index, t) {
+        const card = document.createElement('div');
+        card.className = 'block-card is-retention';
+        const header = document.createElement('div');
+        header.className = 'block-card-header';
+        const title = stepTitle(index, t.holdBlock || 'Hold', t);
+        header.append(title, renderBlockActions(block, index, t));
+        card.appendChild(header);
+
+        const body = document.createElement('div');
+        const row = document.createElement('div');
+        row.className = 'row g-3';
+        row.innerHTML = `
+            <div class="col-6">
+                <label class="form-label small">${t.holdDuration || 'Hold (s)'}</label>
+            </div>
+            <div class="col-6">
+                <label class="form-label small">${t.holdIncrease || 'Increase each round (s)'}</label>
+            </div>
+        `;
+        const durationInput = document.createElement('input');
+        durationInput.type = 'number';
+        durationInput.className = 'form-control shadow-sm custom-input';
+        durationInput.min = '0';
+        durationInput.max = '180';
+        durationInput.value = block.duration;
+        const increaseInput = document.createElement('input');
+        increaseInput.type = 'number';
+        increaseInput.className = 'form-control shadow-sm custom-input';
+        increaseInput.min = '0';
+        increaseInput.max = '60';
+        increaseInput.value = block.increasePerRound;
+
+        const apply = (rerender) => {
+            markAsCustomIfBuiltin();
+            Model.setRetention(workingProtocol, block.id, {
+                duration: durationInput.value,
+                increasePerRound: increaseInput.value
+            });
+            afterProtocolEdit(rerender);
+        };
+        durationInput.addEventListener('input', () => apply(false));
+        increaseInput.addEventListener('input', () => apply(false));
+        durationInput.addEventListener('change', () => {
+            durationInput.value = Math.min(180, Math.max(0, Number(durationInput.value) || 0));
+            apply(true);
+        });
+        increaseInput.addEventListener('change', () => {
+            increaseInput.value = Math.min(60, Math.max(0, Number(increaseInput.value) || 0));
+            apply(true);
+        });
+
+        row.children[0].appendChild(durationInput);
+        row.children[1].appendChild(increaseInput);
+        body.appendChild(row);
+        wireCardCollapse(card, block, t, body);
+        return card;
+    }
+
+    function renderRefCard(block, index, t) {
+        const nested = Model.resolveRef(block);
+        const card = document.createElement('div');
+        card.className = 'block-card is-ref';
+        const header = document.createElement('div');
+        header.className = 'block-card-header';
+        const sourceName = nested
+            ? ((nested.nameKey && t[nested.nameKey]) || nested.name)
+            : block.protocolId;
+        const title = stepTitle(index, (t.includesExercise || t.usesExercise || 'Includes {name}').replace('{name}', sourceName), t);
+        const badge = document.createElement('span');
+        badge.className = 'inherited-badge';
+        badge.textContent = t.buildingBlock || t.linked || 'Building block';
+        title.appendChild(badge);
+        header.append(title, renderBlockActions(block, index, t));
+        card.appendChild(header);
+
+        const body = document.createElement('div');
+        const hint = document.createElement('p');
+        hint.className = 'linked-hint';
+        hint.textContent = (t.linkedHint || '{name} is a separate exercise. This protocol includes it as this step.')
+            .replace('{name}', sourceName);
+        body.appendChild(hint);
+        body.appendChild(renderLinkedPreview(nested, t));
+
+        const detach = document.createElement('button');
+        detach.type = 'button';
+        detach.className = 'btn guide-button w-100';
+        detach.textContent = t.makeLocalCopy || t.detach || 'Make a local copy';
+        detach.addEventListener('click', () => {
+            markAsCustomIfBuiltin();
+            Model.detachRef(workingProtocol, block.id);
+            afterProtocolEdit();
+        });
+        body.appendChild(detach);
+        wireCardCollapse(card, block, t, body);
+        return card;
+    }
+
+    function refreshLibrarySelect() {
+        const t = translations[currentLanguage] || {};
+        const select = elements.addLibraryBlockSelect;
+        const items = Model.listInsertableProtocols(workingProtocol);
+        select.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = t.fromLibrary || 'From library…';
+        select.appendChild(placeholder);
+
+        const groups = {
+            piece: t.piecesGroup || 'Building blocks',
+            builtin: t.builtinsGroup || 'Built-in',
+            user: t.myExercises || 'My exercises'
+        };
+        Object.entries(groups).forEach(([group, label]) => {
+            const matches = items.filter(item => item.group === group);
+            if (!matches.length) return;
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = label;
+            matches.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = (item.nameKey && t[item.nameKey]) || item.name;
+                optgroup.appendChild(option);
+            });
+            select.appendChild(optgroup);
+        });
+        select.disabled = items.length === 0 || workingProtocol.blocks.length >= Model.MAX_BLOCKS;
+    }
+
+    function outlineLabelFor(block, t) {
+        if (block.type === 'retention') return t.holdBlock || 'Hold';
+        if (block.type === 'ref') {
+            const nested = Model.resolveRef(block);
+            return nested ? protocolDisplayName(nested) : block.protocolId;
+        }
+        return t.patternBlock || 'Pattern';
+    }
+
+    function renderProtocolOutline(t) {
+        if (workingProtocol.blocks.length < 2 && !workingProtocol.blocks.some(block => block.type === 'ref')) {
+            return null;
+        }
+        const wrap = document.createElement('div');
+        wrap.className = 'protocol-outline';
+        const label = document.createElement('div');
+        label.className = 'protocol-outline-label';
+        label.textContent = t.protocolOutline || 'This protocol runs, in order:';
+        const list = document.createElement('ol');
+        list.className = 'protocol-outline-list';
+        workingProtocol.blocks.forEach(block => {
+            const item = document.createElement('li');
+            item.textContent = outlineLabelFor(block, t);
+            if (block.type === 'ref') {
+                const mark = document.createElement('span');
+                mark.className = 'outline-linked';
+                mark.textContent = t.buildingBlock || 'Building block';
+                item.appendChild(mark);
+            }
+            list.appendChild(item);
+        });
+        wrap.append(label, list);
+        return wrap;
+    }
+
+    function renderProtocolEditor() {
+        const t = translations[currentLanguage] || {};
+        elements.blockList.innerHTML = '';
+        elements.protocolRoundsInput.value = workingProtocol.rounds;
+        const outline = renderProtocolOutline(t);
+        if (outline) elements.blockList.appendChild(outline);
+        workingProtocol.blocks.forEach((block, index) => {
+            if (index > 0) {
+                const then = document.createElement('div');
+                then.className = 'block-then';
+                then.textContent = t.then || 'Then';
+                elements.blockList.appendChild(then);
+            }
+            if (block.type === 'retention') {
+                elements.blockList.appendChild(renderRetentionCard(block, index, t));
+            } else if (block.type === 'ref') {
+                elements.blockList.appendChild(renderRefCard(block, index, t));
+            } else {
+                elements.blockList.appendChild(renderPatternCard(block, index, t));
+            }
+        });
+
+        const atLimit = workingProtocol.blocks.length >= Model.MAX_BLOCKS;
+        elements.addPatternBlockButton.disabled = atLimit;
+        elements.addRetentionBlockButton.disabled = atLimit;
+        refreshLibrarySelect();
+
+        const isUserExercise = !workingProtocol.builtin && !Model.PRESET_IDS.includes(selectedProtocolId);
+        elements.deleteExerciseButton.classList.toggle('d-none', !isUserExercise);
+        if (!isUserExercise && Model.PRESET_IDS.includes(selectedProtocolId)) {
+            elements.exerciseNameInput.value = '';
+        } else if (isUserExercise) {
+            elements.exerciseNameInput.value = workingProtocol.name;
+        }
+    }
+
+    function markAsCustomIfBuiltin() {
+        if (selectedProtocolId !== 'custom' && Model.PRESET_IDS.includes(selectedProtocolId)) {
+            selectedProtocolId = 'custom';
+            workingProtocol.id = 'custom';
+            workingProtocol.nameKey = 'custom';
+            workingProtocol.name = translations[currentLanguage]?.custom || 'Custom';
+            workingProtocol.builtin = true;
+            workingProtocol.piece = false;
+            elements.presetSelect.value = 'custom';
+        }
+    }
+
+    function afterProtocolEdit(rerender = true) {
+        sessionCompleted = false;
+        elements.visualizerWrapper.classList.remove('session-complete');
+        if (rerender) renderProtocolEditor();
+        syncPracticeSummary();
+        updateTotalTime();
+        updateRemainingCycles();
+        savePreferences();
+        if (!isRunning) drawFrame(null, 0, performance.now());
+    }
+
+    function translatePage() {
         document.querySelectorAll('[data-lang-key]').forEach(element => {
             const key = element.getAttribute('data-lang-key');
             const translation = translations[currentLanguage]?.[key];
             if (translation) {
                 if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
                     element.placeholder = translation;
-                } else {
-                    if (key !== 'totalTime' && key !== 'remainingCycles') {
-                        element.textContent = translation;
-                    }
+                } else if (key !== 'totalTime' && key !== 'remainingCycles') {
+                    element.textContent = translation;
                 }
             }
         });
+
+        refreshPresetSelect();
+        const description = presetDescriptions[currentLanguage]?.[selectedProtocolId]
+            || (workingProtocol.builtin ? '' : workingProtocol.name);
+        document.getElementById('preset-description').textContent = description;
+        renderProtocolEditor();
+        syncPracticeSummary();
         updateTotalTime();
         updateRemainingCycles();
         if (sessionCompleted) {
-            elements.guidedPrompt.textContent = translations[currentLanguage]?.complete || 'Session complete';
+            setGuidedPrompt(translations[currentLanguage]?.complete || 'Session complete', true);
         } else if (!isRunning) {
             resetDisplay();
         }
     }
 
-    // Local storage functions
     function savePreferences() {
         const preferences = {
-            preset: elements.presetSelect.value,
-            inhale: elements.inhaleInput.value,
-            pause1: elements.pause1Input.value,
-            exhale: elements.exhaleInput.value,
-            pause2: elements.pause2Input.value,
-            cycles: elements.cyclesInput.value,
+            protocolId: selectedProtocolId,
+            protocol: workingProtocol,
             volume: elements.volumeControl.value,
             darkMode: document.body.classList.contains('dark-mode'),
             language: currentLanguage,
-            hold: elements.holdInput.value,
-            finalPause: elements.finalPauseInput.value,
-            finalInhale: elements.finalInhaleInput.value,
-            finalPause2: elements.finalPause2Input.value,
-            whmRounds: elements.whmRoundsInput.value,
-            whmIncrease: elements.whmIncreaseInput.value,
+            primaryColor
         };
         localStorage.setItem('breathingTimerPreferences', JSON.stringify(preferences));
     }
@@ -775,9 +1738,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function syncPresetUi() {
-        const isWhmPreset = elements.presetSelect.value === 'wim_hof';
-        elements.wimHofExtraFields.classList.toggle('d-none', !isWhmPreset);
-        elements.cyclesLabel.setAttribute('data-lang-key', isWhmPreset ? 'numberBreaths' : 'cycles');
+        renderProtocolEditor();
+        syncPracticeSummary();
+    }
+
+    function loadProtocol(id) {
+        selectedProtocolId = id;
+        workingProtocol = Model.findProtocol(id);
+        elements.presetSelect.value = id;
+        sessionCompleted = false;
+        elements.visualizerWrapper.classList.remove('session-complete');
+        syncPresetUi();
+        translatePage();
+        savePreferences();
+        if (!isRunning) drawFrame(null, 0, performance.now());
     }
 
     function loadPreferences() {
@@ -790,22 +1764,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (preferences) {
-            if (presets[preferences.preset]) elements.presetSelect.value = preferences.preset;
-            setStoredNumber(elements.inhaleInput, preferences.inhale);
-            setStoredNumber(elements.pause1Input, preferences.pause1);
-            setStoredNumber(elements.exhaleInput, preferences.exhale);
-            setStoredNumber(elements.pause2Input, preferences.pause2);
-            setStoredNumber(elements.cyclesInput, preferences.cycles);
             setStoredNumber(elements.volumeControl, preferences.volume);
-            setStoredNumber(elements.holdInput, preferences.hold);
-            setStoredNumber(elements.finalPauseInput, preferences.finalPause);
-            setStoredNumber(elements.finalInhaleInput, preferences.finalInhale);
-            setStoredNumber(elements.finalPause2Input, preferences.finalPause2);
-            setStoredNumber(elements.whmRoundsInput, preferences.whmRounds);
-            setStoredNumber(elements.whmIncreaseInput, preferences.whmIncrease);
-
             if (typeof preferences.darkMode === 'boolean') {
-                if(preferences.darkMode) {
+                if (preferences.darkMode) {
                     document.body.classList.add('dark-mode');
                     elements.toggleModeButton.checked = true;
                 } else {
@@ -817,7 +1778,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentLanguage = preferences.language;
                 elements.languageToggle.textContent = currentLanguage.toUpperCase();
             }
+            if (/^#[0-9a-f]{6}$/i.test(preferences.primaryColor || '')) {
+                primaryColor = preferences.primaryColor;
+            }
+
+            workingProtocol = Model.migrateLegacyPreferences(preferences);
+            selectedProtocolId = Model.canonicalId(
+                preferences.protocolId
+                || preferences.preset
+                || workingProtocol.id
+                || 'custom'
+            );
+            if (!Model.PRESET_IDS.includes(selectedProtocolId)
+                && !Model.loadUserLibrary().some(item => item.id === selectedProtocolId)) {
+                selectedProtocolId = workingProtocol.builtin ? workingProtocol.id : selectedProtocolId;
+            }
         }
+
+        applyPrimaryColor(primaryColor);
+        refreshPresetSelect();
+        elements.presetSelect.value = [...elements.presetSelect.options].some(option => option.value === selectedProtocolId)
+            ? selectedProtocolId
+            : 'custom';
         syncPresetUi();
         translatePage();
     }
@@ -826,38 +1808,100 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.startButton.addEventListener('click', start);
     elements.stopButton.addEventListener('click', stop);
     elements.pauseButton.addEventListener('click', () => {
-        if (isPaused) resume(); else pause();
+        toggleSessionPause();
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!isRunning) return;
+        const target = event.target;
+        if (target instanceof Element && target.closest('button, a, input, select, textarea, label, .offcanvas, .modal')) {
+            return;
+        }
+        toggleSessionPause();
     });
 
     elements.volumeControl.addEventListener('input', (event) => {
         beep.volume = event.target.value;
+        event.target.style.setProperty('--range-progress', `${event.target.value * 100}%`);
         savePreferences();
     });
 
-    elements.presetSelect.addEventListener('change', (event) => {
-        sessionCompleted = false;
-        const preset = presets[event.target.value];
-        elements.inhaleInput.value = preset.inhale;
-        elements.pause1Input.value = preset.pause1;
-        elements.exhaleInput.value = preset.exhale;
-        elements.pause2Input.value = preset.pause2;
+    elements.colorSwatches.forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            applyPrimaryColor(swatch.dataset.color);
+            savePreferences();
+        });
+    });
 
-        if (preset.cycles) elements.cyclesInput.value = preset.cycles;
-        if (preset.whmRounds) elements.whmRoundsInput.value = preset.whmRounds;
-        if (preset.whmIncrease) elements.whmIncreaseInput.value = preset.whmIncrease;
-        if (preset.hold) elements.holdInput.value = preset.hold;
-        if (preset.finalPause) elements.finalPauseInput.value = preset.finalPause;
-        if (preset.finalInhale) elements.finalInhaleInput.value = preset.finalInhale;
-        if (preset.finalPause2) elements.finalPause2Input.value = preset.finalPause2;
-
-        syncPresetUi();
-        translatePage();
+    const applyPickedColor = (event) => {
+        applyPrimaryColor(event.target.value);
         savePreferences();
+    };
+    elements.primaryColorInput.addEventListener('input', applyPickedColor);
+    elements.primaryColorInput.addEventListener('change', applyPickedColor);
+
+    elements.presetSelect.addEventListener('change', (event) => {
+        loadProtocol(event.target.value);
+    });
+
+    elements.addPatternBlockButton.addEventListener('click', () => {
+        markAsCustomIfBuiltin();
+        Model.addBlock(workingProtocol, {
+            type: 'pattern',
+            cycles: 4,
+            phases: [
+                { type: 'inhale', duration: 4 },
+                { type: 'exhale', duration: 4 }
+            ]
+        });
+        afterProtocolEdit();
+    });
+
+    elements.addRetentionBlockButton.addEventListener('click', () => {
+        markAsCustomIfBuiltin();
+        Model.addBlock(workingProtocol, { type: 'retention', duration: 20, increasePerRound: 0 });
+        afterProtocolEdit();
+    });
+
+    elements.addLibraryBlockSelect.addEventListener('change', (event) => {
+        const id = event.target.value;
+        if (!id) return;
+        markAsCustomIfBuiltin();
+        Model.addRefBlock(workingProtocol, id);
+        event.target.value = '';
+        afterProtocolEdit();
+    });
+
+    elements.saveExerciseButton.addEventListener('click', () => {
+        const name = elements.exerciseNameInput.value.trim()
+            || protocolDisplayName(workingProtocol);
+        workingProtocol.name = name;
+        workingProtocol.builtin = false;
+        workingProtocol.nameKey = '';
+        const saved = Model.saveUserProtocol(workingProtocol);
+        workingProtocol = Model.cloneProtocol(saved);
+        selectedProtocolId = saved.id;
+        refreshPresetSelect();
+        elements.presetSelect.value = saved.id;
+        syncPresetUi();
+        document.getElementById('preset-description').textContent = saved.name;
+        savePreferences();
+        const saveLabel = elements.saveExerciseButton.querySelector('[data-lang-key="saveExercise"]') || elements.saveExerciseButton;
+        saveLabel.textContent = translations[currentLanguage]?.saved || 'Saved';
+        window.setTimeout(() => {
+            saveLabel.textContent = translations[currentLanguage]?.saveExercise || 'Save';
+        }, 1200);
+    });
+
+    elements.deleteExerciseButton.addEventListener('click', () => {
+        if (Model.PRESET_IDS.includes(selectedProtocolId)) return;
+        Model.deleteUserProtocol(selectedProtocolId);
+        loadProtocol('custom');
     });
 
     elements.toggleModeButton.addEventListener('change', () => {
         document.body.classList.toggle('dark-mode');
-        updateCachedColors();
+        applyPrimaryColor(primaryColor);
         savePreferences();
     });
 
@@ -870,37 +1914,18 @@ document.addEventListener('DOMContentLoaded', () => {
         savePreferences();
     });
 
-    [
-        elements.inhaleInput, elements.pause1Input, elements.exhaleInput,
-        elements.pause2Input, elements.cyclesInput, elements.holdInput,
-        elements.finalPauseInput, elements.finalInhaleInput, elements.finalPause2Input,
-        elements.whmRoundsInput, elements.whmIncreaseInput
-    ].forEach(input => {
-        input.addEventListener('input', () => {
-            sessionCompleted = false;
-            updateTotalTime();
-            savePreferences();
-        });
-
-        input.addEventListener('change', () => {
-            const value = parseInt(input.value);
-            const min = parseInt(input.min);
-            const max = parseInt(input.max);
-
-            if (isNaN(value) || value < min) input.value = min;
-            else if (value > max) input.value = max;
-
-            updateTotalTime();
-            savePreferences();
-            
-            // Set preset to Custom if a core timing value manually changed (ignore WHM specific ones)
-            if (['inhale', 'pause1', 'exhale', 'pause2'].includes(input.id)) {
-                elements.presetSelect.value = 'custom';
-                syncPresetUi();
-                translatePage();
-                savePreferences();
-            }
-        });
+    elements.protocolRoundsInput.addEventListener('input', () => {
+        Model.setProtocolRounds(workingProtocol, elements.protocolRoundsInput.value);
+        afterProtocolEdit(false);
+    });
+    elements.protocolRoundsInput.addEventListener('change', () => {
+        const value = parseInt(elements.protocolRoundsInput.value, 10);
+        const min = parseInt(elements.protocolRoundsInput.min, 10);
+        const max = parseInt(elements.protocolRoundsInput.max, 10);
+        if (isNaN(value) || value < min) elements.protocolRoundsInput.value = min;
+        else if (value > max) elements.protocolRoundsInput.value = max;
+        Model.setProtocolRounds(workingProtocol, elements.protocolRoundsInput.value);
+        afterProtocolEdit();
     });
 
     document.addEventListener('keydown', (event) => {
@@ -920,7 +1945,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden && isRunning && !isPaused) pause();
+        updateTimerExecutionMode();
     });
 
     window.addEventListener('resize', () => {
@@ -938,8 +1963,16 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.pauseButton.classList.add('d-none');
 
         beep.volume = elements.volumeControl.value;
+        elements.volumeControl.style.setProperty('--range-progress', `${elements.volumeControl.value * 100}%`);
         
         resizeCanvas();
+        if ('ResizeObserver' in window) {
+            visualizerResizeObserver = new ResizeObserver(() => {
+                resizeCanvas();
+                if (!isRunning) drawFrame(null, 0, performance.now());
+            });
+            visualizerResizeObserver.observe(elements.visualizerWrapper);
+        }
         animationFrameId = requestAnimationFrame(renderLoop);
     }
 
