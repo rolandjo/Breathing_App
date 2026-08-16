@@ -1,6 +1,6 @@
 /** Canonical application release metadata shared by the page and service worker. */
 (function (global) {
-    const version = '1.1.1';
+    const version = '1.2.0';
 
     global.BreathingApp = Object.freeze({
         version,
