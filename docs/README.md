@@ -46,7 +46,7 @@ flowchart TD
     R -->|Paused| T[Draw paused state]
     T --> Q
 
-    R -->|Yes| U[processTimerAt()]
+    R -->|Yes| U["processActiveTimerAt(time)"]
     U --> V[currentStep from session]
     V --> W[Update phase timer]
     W --> X[Draw animated orb/progress]
@@ -56,7 +56,7 @@ flowchart TD
     Z --> AA{More steps?}
     AA -->|Yes| AB[Update prompt + audio cue]
     AB --> Q
-    AA -->|No| AC[finishSession()]
+    AA -->|No| AC["finishSession()"]
     AC --> AD[Mark complete + reset controls]
     AD --> Q
 
@@ -183,16 +183,16 @@ flowchart TD
     J --> J8[Visibility + resize listeners]
     J --> J9[Exercise chooser menu listeners]
 
-    J --> K[initialize()]
+    J --> K["initialize()"]
     K --> K1[Render version labels]
-    K1 --> K2[loadPreferences()]
-    K2 --> K3[syncPresetUi()]
-    K3 --> K4[translatePage()]
+    K1 --> K2["loadPreferences()"]
+    K2 --> K3["syncPresetUi()"]
+    K3 --> K4["translatePage()"]
     K4 --> K5[Set control visibility]
     K5 --> K6[Set volume slider UI]
-    K6 --> K7[resizeCanvas()]
+    K6 --> K7["resizeCanvas()"]
     K7 --> K8[Attach ResizeObserver]
-    K8 --> K9[Start renderLoop()]
+    K8 --> K9["Start renderLoop()"]
 
     K9 --> L[Idle render loop]
     L --> M{Running session?}
@@ -213,54 +213,54 @@ flowchart TD
     R --> S[Draw active progress marker]
     S --> T{Phase complete?}
     T -->|No| L
-    T -->|Yes| U[session.advance()]
+    T -->|Yes| U["session.advance()"]
     U --> V{More steps?}
     V -->|Yes| W[Update prompt + voice cue]
     W --> L
-    V -->|No| X[finishSession()]
+    V -->|No| X["finishSession()"]
     X --> Y[Show completion state]
     Y --> L
 
-    AA[Start button] --> AB[start()]
+    AA[Start button] --> AB["start()"]
     AB --> AB0[Prepare audio during trusted Start gesture]
     AB0 --> AB1[Hide settings panels]
     AB1 --> AB2[Create session from workingProtocol]
     AB2 --> AB3[Set running + countdown flags]
     AB3 --> AB4[Show Stop and initial value 3]
     AB4 --> AB5[Keep Pause hidden and defer first cue]
-    AB5 --> AB6[updateTimerExecutionMode()]
+    AB5 --> AB6["updateTimerExecutionMode()"]
 
-    AC[Pause button / tap-to-toggle] --> AD[toggleSessionPause()]
+    AC[Pause button / tap-to-toggle] --> AD["toggleSessionPause()"]
     AD --> AE{Paused?}
-    AE -->|Yes| AF[resume()]
-    AE -->|No| AG[pause()]
+    AE -->|Yes| AF["resume()"]
+    AE -->|No| AG["pause()"]
     AF --> AF1[Unpause, restore prompt, speak current phase]
     AG --> AG1[Pause, cancel voice, stop background timer]
 
-    AH[Stop button] --> AI[stop()]
+    AH[Stop button] --> AI["stop()"]
     AI --> AI1[Cancel voice]
     AI1 --> AI2[Clear session]
     AI2 --> AI3[Restore idle controls]
     AI3 --> AI4[Reset display]
 
     AJ[Edit protocol] --> AK[Model update call]
-    AK --> AL[afterProtocolEdit()]
+    AK --> AL["afterProtocolEdit()"]
     AL --> AL1[Invalidate cached visual phases]
     AL1 --> AL2[Re-render editor if needed]
-    AL2 --> AL3[syncPracticeSummary()]
-    AL3 --> AL4[updateTotalTime()]
-    AL4 --> AL5[updateRemainingCycles()]
-    AL5 --> AL6[savePreferences()]
+    AL2 --> AL3["syncPracticeSummary()"]
+    AL3 --> AL4["updateTotalTime()"]
+    AL4 --> AL5["updateRemainingCycles()"]
+    AL5 --> AL6["savePreferences()"]
     AL6 --> AL7[Update idle canvas]
 
     AM[Change language/theme/color/audio mode/volume] --> AL
 
-    AN[Load preferences] --> AO[Storage.readJSON()]
+    AN[Load preferences] --> AO["Storage.readJSON()"]
     AO --> AP[Restore protocol/theme/language/audio mode/volume/colors]
-    AP --> AQ[applyPrimaryColor()]
-    AQ --> AR[refreshPresetSelect()]
-    AR --> AS[syncPresetUi()]
-    AS --> AT[translatePage()]
+    AP --> AQ["applyPrimaryColor()"]
+    AQ --> AR["refreshPresetSelect()"]
+    AR --> AS["syncPresetUi()"]
+    AS --> AT["translatePage()"]
 
     U1[Window load] --> U2[Register sw.js]
 ```
