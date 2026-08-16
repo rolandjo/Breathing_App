@@ -134,7 +134,15 @@
         <div class="offcanvas-body settings-body p-4 custom-scrollbar d-flex flex-column">
             <!-- Audio Settings -->
             <div class="settings-section settings-card mb-3">
-                <h6 class="settings-section-title mb-3 text-uppercase"><i class="fa-solid fa-microphone" aria-hidden="true"></i> <span data-lang-key="audio">Voice</span></h6>
+                <h6 class="settings-section-title mb-3 text-uppercase"><i class="fa-solid fa-volume-high" aria-hidden="true"></i> <span data-lang-key="audio">Audio</span></h6>
+                <div class="form-group mb-3">
+                    <label for="audio-mode" class="form-label" data-lang-key="audioMode">Sound mode</label>
+                    <select id="audio-mode" class="form-select shadow-sm custom-select">
+                        <option value="recorded" data-lang-key="recordedSounds">Recorded breathing sounds</option>
+                        <option value="bowl" data-lang-key="bowlChime">Bowl chime</option>
+                        <option value="tts" data-lang-key="systemVoice">System voice (TTS)</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label for="volume-control" class="form-label d-flex justify-content-between mb-2">
                         <span data-lang-key="volumeControl">Volume</span>

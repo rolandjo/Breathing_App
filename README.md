@@ -7,7 +7,7 @@ A browser breathing timer you can install as a PWA. Follow a visual orb and time
 - Guided inhale, hold, exhale, and rest phases with an animated visualizer
 - Built-in presets and a protocol editor (stack steps, repeat rounds, reuse other exercises)
 - Saved custom exercises in the browser (`localStorage`)
-- Dark mode, Material-style accent colors, and localized prerecorded breathing cues with system-speech fallback
+- Dark mode, Material-style accent colors, and selectable recorded cues, bowl chime, or system voice
 - English, Spanish, French, and Romanian
 - Offline support via a service worker
 - Visible semantic version linked to the offline cache release
@@ -41,6 +41,15 @@ Built-in presets cannot be overwritten. Saving a changed builtin creates a new u
 
 The palette icon opens appearance settings: dark mode and accent color (presets or a custom color). The accent drives the primary UI color and the idle orb.
 
+## Audio cues
+
+Open **Breathing** and choose an audio mode. **Recorded breathing sounds** is
+the default and uses the localized `In`, `Out`, `Hold`, and `Pause` recordings.
+If Android cannot load a recording, the app retries it through a second browser
+audio backend and then uses the bowl chime. It never starts synthesized speech
+as an automatic fallback. **System voice (TTS)** is used only when selected
+explicitly; **Bowl chime** is also available as a permanent mode.
+
 ## Run locally
 
 This is a static site. No build step.
@@ -70,7 +79,7 @@ Open `index.html` directly if you only need a quick look; install-as-app and off
 | `translation-manager.js` | Language selection, fallback, and parameter substitution |
 | `translations/` | Explicit English, Spanish, French, and Romanian catalogs |
 | `version.js` | Canonical app and offline-cache version |
-| `voice.js` | Prerecorded breathing cues with localized system-speech fallback |
+| `voice.js` | Recorded cues, Android retry, bowl fallback, and opt-in system speech |
 | `audio/voice/` | Offline MP3 cues organized by language |
 | `sw.js` | Offline cache |
 | `manifest.json` | PWA name and install metadata |
@@ -79,9 +88,11 @@ Open `index.html` directly if you only need a quick look; install-as-app and off
 Preferences live in `breathingTimerPreferences`. Saved exercises live in `breathingTimerLibrary`.
 
 Howler 2.2.4 is vendored under `vendor/howler/` and loaded before `voice.js`.
-Its reusable HTML5 audio pool handles Android media unlocking without requiring
-a network dependency; the runtime is included in the service-worker cache. See
-`vendor/howler/LICENSE.md` for its MIT license.
+Recorded cues first use Web Audio and retry once with Howler's reusable HTML5
+audio pool. The independent bowl fallback is silently primed by the initial
+Start gesture for Android compatibility. Howler, the recordings, and the bowl
+are included in the service-worker cache. See `vendor/howler/LICENSE.md` for
+its MIT license.
 
 ## Releases
 

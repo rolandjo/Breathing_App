@@ -24,7 +24,7 @@ flowchart TD
     B9 --> C[DOMContentLoaded]
     C --> D[Find DOM elements]
     D --> E[Load preferences from localStorage]
-    E --> F[Load selected protocol / theme / language / volume]
+    E --> F[Load selected protocol / theme / language / audio mode / volume]
     F --> G[Apply accent color + translations]
     G --> H[Render translated protocol editor + summary]
     H --> I[Initialize canvas + resize observer]
@@ -35,7 +35,7 @@ flowchart TD
     L --> M[Set running state]
     M --> N[Show pause/stop controls]
     N --> O[Set first guided prompt]
-    O --> P[Play prerecorded cue with TTS fallback]
+    O --> P[Play cue using the explicitly selected audio mode]
 
     P --> Q[renderLoop]
     Q --> R{Running?}
@@ -79,44 +79,46 @@ flowchart TD
 
 ## Audio cue flow
 
-`BreathingVoice` uses the locally vendored Howler 2.2.4 core and prefers
-localized prerecorded MP3 cues. Inhale and exhale use the natural `In.mp3` and
-`Out.mp3` recordings; hold and rest remain distinct phase types and files.
-Localized TTS phrases and regional speech tags come from the same explicit
-catalogs used by the interface, through `translation-manager.js`.
-Howler is configured with HTML5 audio, an eight-element unlocked pool, and
-automatic suspension disabled so timer-driven phases remain playable after the
-initial Android user gesture.
+`BreathingVoice` offers three explicit modes. Recorded sounds are the default
+and use localized `In.mp3`, `Out.mp3`, `Hold.mp3`, and `Pause.mp3` files. Bowl
+mode uses `tibetan-singing-bowl-54400.mp3` with different playback rates for
+inhale and exhale. TTS mode uses the localized phrases and regional speech tags
+from `translation-manager.js`; system speech never starts automatically.
 
-A temporary `playerror` is treated as a mobile media lock: the current cue
-waits for Howler's `unlock` event and retries if the phase is still active. It
-does **not** trigger TTS. A `loaderror`, a missing Howler runtime, or an
-unavailable audio engine indicates genuine recording unavailability and may use
-localized system speech. Stop, pause, and phase changes invalidate pending
-unlock retries so an obsolete cue cannot play later.
+Recorded cues first use Howler's Web Audio backend. A `loaderror` retries the
+same recording once through Howler's HTML5 Audio pool because Android can report
+a transient decoding or media-backend failure even when the file exists. If the
+second backend also fails, or Howler is unavailable, the native bowl is used.
+The bowl element is silently primed by the first recorded cue, while the Start
+click still provides an Android-approved user gesture. A `playerror` waits once
+for Howler's `unlock` event; another failure also uses the bowl. No file is
+blacklisted for the rest of the session after a single error. Stop, pause, and
+phase changes invalidate pending retries and cancel every active audio path.
 
 ```mermaid
 flowchart TD
     A[Phase starts or resumes] --> B[script.js calls BreathingVoice.speak]
     B --> C[Cancel the previous cue or speech]
-    C --> D[Resolve language and phase audio file]
-    D --> E{Howler audio available?}
-    E -->|Yes| F[Reuse or create cached HTML5 Howl]
-    F --> G[Apply selected volume and play]
-    G --> H{Howler event}
-    H -->|play / end| I[Play and complete prerecorded cue]
-    H -->|playerror| J[Wait for Howler unlock]
-    J --> K{Cue still current?}
-    K -->|Yes| G
-    K -->|No| L[Discard obsolete retry]
-    H -->|loaderror| M[Mark recording unavailable]
-    E -->|No| N{speechSynthesis available?}
-    M --> N
-    N -->|Yes| O[Speak the localized phase label]
-    N -->|No| P[Continue the visual exercise silently]
+    C --> D{Selected audio mode}
+    D -->|TTS| E[Speak localized phase label]
+    D -->|Bowl| F[Play native bowl at phase playback rate]
+    D -->|Recorded| G[Prime bowl silently during Start gesture]
+    G --> H{Howler available?}
+    H -->|No| F
+    H -->|Yes| I[Play localized recording with Web Audio]
+    I --> J{Playback result}
+    J -->|play / end| K[Complete prerecorded cue]
+    J -->|playerror first time| L[Wait for Howler unlock]
+    L --> M{Cue still current?}
+    M -->|Yes| I
+    M -->|No| N[Discard obsolete retry]
+    J -->|loaderror| O[Retry recording with HTML5 Audio]
+    O --> P{Retry succeeds?}
+    P -->|Yes| K
+    P -->|No| F
+    J -->|second playerror| F
 
-    Q[Stop or pause] --> R[Cancel cue and pending unlock retry]
-    S[Next phase] --> C
+    Q[Stop, pause, or next phase] --> R[Cancel cue, bowl, speech, and pending retry]
 ```
 
 ## `script.js` flow
@@ -143,7 +145,7 @@ flowchart TD
 
     I --> J[Wire event listeners]
     J --> J1[Start / Pause / Stop buttons]
-    J --> J2[Volume slider]
+    J --> J2[Audio mode + volume controls]
     J --> J3[Accent swatches + color picker]
     J --> J4[Preset select]
     J --> J5[Protocol editor controls]
@@ -216,10 +218,10 @@ flowchart TD
     AL5 --> AL6[savePreferences()]
     AL6 --> AL7[Update idle canvas]
 
-    AM[Change language/theme/color/volume] --> AL
+    AM[Change language/theme/color/audio mode/volume] --> AL
 
     AN[Load preferences] --> AO[Storage.readJSON()]
-    AO --> AP[Restore protocol/theme/language/volume/colors]
+    AO --> AP[Restore protocol/theme/language/audio mode/volume/colors]
     AP --> AQ[applyPrimaryColor()]
     AQ --> AR[refreshPresetSelect()]
     AR --> AS[syncPresetUi()]
