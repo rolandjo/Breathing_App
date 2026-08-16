@@ -7,6 +7,10 @@ const vm = require('node:vm');
 const context = { window: null };
 context.window = context;
 vm.createContext(context);
+for (const file of ['english.js', 'spanish.js', 'french.js', 'romanian.js']) {
+    vm.runInContext(fs.readFileSync(path.resolve(__dirname, '..', 'translations', file), 'utf8'), context);
+}
+vm.runInContext(fs.readFileSync(path.resolve(__dirname, '..', 'translation-manager.js'), 'utf8'), context);
 vm.runInContext(fs.readFileSync(path.resolve(__dirname, '..', 'voice.js'), 'utf8'), context);
 
 function createHarness(language = 'en', volume = 0.5, withHowler = true) {

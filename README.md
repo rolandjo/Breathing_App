@@ -67,6 +67,8 @@ Open `index.html` directly if you only need a quick look; install-as-app and off
 | `model.js` | Protocols, blocks, library, session timeline |
 | `storage.js` | Defensive browser persistence |
 | `ui-utils.js` | Pure UI formatting and keyboard-navigation helpers |
+| `translation-manager.js` | Language selection, fallback, and parameter substitution |
+| `translations/` | Explicit English, Spanish, French, and Romanian catalogs |
 | `version.js` | Canonical app and offline-cache version |
 | `voice.js` | Prerecorded breathing cues with localized system-speech fallback |
 | `audio/voice/` | Offline MP3 cues organized by language |

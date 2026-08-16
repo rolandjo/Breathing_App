@@ -4,6 +4,6 @@
   "private": true,
   "scripts": {
     "test": "node --test",
-    "check": "node --check version.js && node --check storage.js && node --check ui-utils.js && node --check voice.js && node --check model.js && node --check script.js && node --check sw.js"
+    "check": "node --check version.js && node --check storage.js && node --check ui-utils.js && node --check translations/english.js && node --check translations/spanish.js && node --check translations/french.js && node --check translations/romanian.js && node --check translation-manager.js && node --check voice.js && node --check model.js && node --check script.js && node --check sw.js"
   }
 }

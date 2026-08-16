@@ -14,17 +14,19 @@ flowchart TD
     B --> B1[version.js → BreathingApp]
     B --> B2[storage.js → BreathingStorage]
     B --> B3[ui-utils.js → BreathingUiUtils]
-    B --> B4[howler.core.min.js → mobile-safe audio engine]
-    B --> B5[voice.js → BreathingVoice]
-    B --> B6[model.js → BreathingModel]
-    B --> B7[script.js main controller]
+    B --> B4[translations/*.js → explicit language catalogs]
+    B --> B5[translation-manager.js → lookup and fallback]
+    B --> B6[howler.core.min.js → mobile-safe audio engine]
+    B --> B7[voice.js → BreathingVoice]
+    B --> B8[model.js → BreathingModel]
+    B --> B9[script.js main controller]
 
-    B7 --> C[DOMContentLoaded]
+    B9 --> C[DOMContentLoaded]
     C --> D[Find DOM elements]
     D --> E[Load preferences from localStorage]
     E --> F[Load selected protocol / theme / language / volume]
     F --> G[Apply accent color + translations]
-    G --> H[Render protocol editor + summary]
+    G --> H[Render translated protocol editor + summary]
     H --> I[Initialize canvas + resize observer]
     I --> J[Start animation loop]
     J --> K{User action}
@@ -80,6 +82,8 @@ flowchart TD
 `BreathingVoice` uses the locally vendored Howler 2.2.4 core and prefers
 localized prerecorded MP3 cues. Inhale and exhale use the natural `In.mp3` and
 `Out.mp3` recordings; hold and rest remain distinct phase types and files.
+Localized TTS phrases and regional speech tags come from the same explicit
+catalogs used by the interface, through `translation-manager.js`.
 Howler is configured with HTML5 audio, an eight-element unlocked pool, and
 automatic suspension disabled so timer-driven phases remain playable after the
 initial Android user gesture.
