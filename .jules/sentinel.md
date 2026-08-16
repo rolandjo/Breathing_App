@@ -1,4 +1,4 @@
 ## 2024-05-24 - DOM-Based XSS Prevention in UI Rendering
-**Vulnerability:** Use of `innerHTML` in `script.js` UI rendering functions (like `iconButton` and `renderRetentionCard`) could lead to Cross-Site Scripting (XSS) if user input (like exercise names or custom labels) is accidentally passed into these strings in the future.
-**Learning:** Even if current inputs are hardcoded or sanitized, using `innerHTML` to construct UI elements with variables is a brittle pattern. A future refactor or feature addition could easily introduce user input here.
-**Prevention:** Replace all `innerHTML` assignments with safe DOM manipulation methods (`document.createElement`, `textContent`, `setAttribute`, etc.). This provides a robust defense-in-depth against XSS.
+**Vulnerability:** No currently exploitable XSS path was identified. However, interpolated innerHTML in UI helpers relied on values remaining trusted and could become unsafe if future callers provide user-controlled content.
+**Learning:** Constructing UI through interpolated HTML creates an unnecessary trust dependency that can be overlooked during future development.
+**Prevention:** Use document.createElement, textContent, setAttribute, and append when rendering dynamic values. Assignments used only to clear content, such as innerHTML = '', are not injection risks and may remain or be replaced with replaceChildren().
