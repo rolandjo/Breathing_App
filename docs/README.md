@@ -81,7 +81,7 @@ flowchart TD
 
 `BreathingVoice` offers three explicit modes. Recorded sounds are the default
 and use localized `In.mp3`, `Out.mp3`, `Hold.mp3`, and `Pause.mp3` files. Bowl
-mode uses `tibetan-singing-bowl-54400.mp3` with different playback rates for
+mode uses `audio/tibetan-singing-bowl-54400.mp3` with different playback rates for
 inhale and exhale. TTS mode uses the localized phrases and regional speech tags
 from `translation-manager.js`; system speech never starts automatically.
 
@@ -94,6 +94,13 @@ click still provides an Android-approved user gesture. A `playerror` waits once
 for Howler's `unlock` event; another failure also uses the bowl. No file is
 blacklisted for the rest of the session after a single error. Stop, pause, and
 phase changes invalidate pending retries and cancel every active audio path.
+
+Android's media stack requests MP3 data with an HTTP `Range` header. The service
+worker stores complete audio files for offline use, then slices that complete
+cached response into a standards-compliant `206 Partial Content` response. An
+invalid or unsatisfiable range receives `416` with the complete asset length.
+Partial responses are never cached because doing so could replace the complete
+offline asset with a fragment.
 
 ```mermaid
 flowchart TD
@@ -119,6 +126,23 @@ flowchart TD
     J -->|second playerror| F
 
     Q[Stop, pause, or next phase] --> R[Cancel cue, bowl, speech, and pending retry]
+```
+
+## Service-worker media range flow
+
+```mermaid
+flowchart TD
+    A[GET request reaches sw.js] --> B{Range header present?}
+    B -->|No| C[Use normal navigation, network-first, or stale-while-revalidate path]
+    B -->|Yes| D[Look up complete response by URL]
+    D --> E{Complete status-200 response cached?}
+    E -->|Yes| H[Read complete body]
+    E -->|No| F[Fetch request without Range header]
+    F --> G[Cache complete same-origin response]
+    G --> H
+    H --> I{Single byte range valid?}
+    I -->|Yes| J[Slice bytes and return 206 with Content-Range]
+    I -->|No| K[Return 416 with complete asset length]
 ```
 
 ## `script.js` flow

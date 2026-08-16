@@ -226,7 +226,7 @@ test('bowl mode uses distinct pitches for inhale and exhale', () => {
     const { calls, guide } = createHarness('en', 0.6, true, 'bowl');
     guide.speak('inhale');
     const bowl = calls.find(call => call.type === 'create-audio').player;
-    assert.equal(bowl.src, './tibetan-singing-bowl-54400.mp3');
+    assert.equal(bowl.src, './audio/tibetan-singing-bowl-54400.mp3');
     assert.equal(bowl.playbackRate, 1.4);
     assert.equal(bowl.volume, 0.6);
 

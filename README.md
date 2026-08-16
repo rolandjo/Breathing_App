@@ -46,7 +46,9 @@ The palette icon opens appearance settings: dark mode and accent color (presets 
 Open **Breathing** and choose an audio mode. **Recorded breathing sounds** is
 the default and uses the localized `In`, `Out`, `Hold`, and `Pause` recordings.
 If Android cannot load a recording, the app retries it through a second browser
-audio backend and then uses the bowl chime. It never starts synthesized speech
+audio backend and then uses the bowl chime. Cached audio supports HTTP byte-range
+responses, which Android media playback requires even when the PWA is offline.
+The app never starts synthesized speech
 as an automatic fallback. **System voice (TTS)** is used only when selected
 explicitly; **Bowl chime** is also available as a permanent mode.
 
@@ -80,8 +82,8 @@ Open `index.html` directly if you only need a quick look; install-as-app and off
 | `translations/` | Explicit English, Spanish, French, and Romanian catalogs |
 | `version.js` | Canonical app and offline-cache version |
 | `voice.js` | Recorded cues, Android retry, bowl fallback, and opt-in system speech |
-| `audio/voice/` | Offline MP3 cues organized by language |
-| `sw.js` | Offline cache |
+| `audio/` | Offline bowl chime and localized MP3 cues under `audio/voice/` |
+| `sw.js` | Offline cache and byte-range responses for cached media |
 | `manifest.json` | PWA name and install metadata |
 | `vendor/` | Bundled Bootstrap, Font Awesome, and Howler runtime assets and licenses |
 
@@ -91,7 +93,9 @@ Howler 2.2.4 is vendored under `vendor/howler/` and loaded before `voice.js`.
 Recorded cues first use Web Audio and retry once with Howler's reusable HTML5
 audio pool. The independent bowl fallback is silently primed by the initial
 Start gesture for Android compatibility. Howler, the recordings, and the bowl
-are included in the service-worker cache. See `vendor/howler/LICENSE.md` for
+at `audio/tibetan-singing-bowl-54400.mp3` are included in the service-worker
+cache. Cached media Range requests receive proper `206 Partial Content`
+responses instead of a complete `200` response. See `vendor/howler/LICENSE.md` for
 its MIT license.
 
 ## Releases
