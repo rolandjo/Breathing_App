@@ -1,0 +1,3 @@
+## 2026-08-16 - Add title tooltips to icon buttons
+**Learning:** Found that several icon-only buttons lacked native tooltips, which makes it harder for non-screenreader users to understand their function if the icons are ambiguous.
+**Action:** Added `title` and matching `data-lang-title` attributes to all icon-only buttons in `index.html` and updated the `iconButton` generator in `script.js` to automatically set the `title` attribute matching the `aria-label`. Next time, when creating icon-only buttons, always include `title` alongside `aria-label`.

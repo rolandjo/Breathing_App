@@ -1516,6 +1516,7 @@ document.addEventListener('DOMContentLoaded', () => {
         button.className = 'btn btn-icon';
         button.innerHTML = `<i class="${icon}" aria-hidden="true"></i>`;
         button.setAttribute('aria-label', label);
+        button.title = label;
         button.disabled = disabled;
         return button;
     }
