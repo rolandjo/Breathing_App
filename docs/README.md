@@ -1,4 +1,10 @@
-# Diagrams
+# Application logic documentation
+
+This file is the maintained source of truth for the application's runtime
+flows. Every change to session, timer, canvas, audio, storage, localization, or
+PWA logic must update the affected diagram and explanation here in the same
+change. User-visible behavior and setup changes must also be reflected in the
+root [`README.md`](../README.md).
 
 ## App logic
 
@@ -8,11 +14,12 @@ flowchart TD
     B --> B1[version.js → BreathingApp]
     B --> B2[storage.js → BreathingStorage]
     B --> B3[ui-utils.js → BreathingUiUtils]
-    B --> B4[voice.js → BreathingVoice]
-    B --> B5[model.js → BreathingModel]
-    B --> B6[script.js main controller]
+    B --> B4[howler.core.min.js → mobile-safe audio engine]
+    B --> B5[voice.js → BreathingVoice]
+    B --> B6[model.js → BreathingModel]
+    B --> B7[script.js main controller]
 
-    B6 --> C[DOMContentLoaded]
+    B7 --> C[DOMContentLoaded]
     C --> D[Find DOM elements]
     D --> E[Load preferences from localStorage]
     E --> F[Load selected protocol / theme / language / volume]
@@ -26,7 +33,7 @@ flowchart TD
     L --> M[Set running state]
     M --> N[Show pause/stop controls]
     N --> O[Set first guided prompt]
-    O --> P[Play voice cue]
+    O --> P[Play prerecorded cue with TTS fallback]
 
     P --> Q[renderLoop]
     Q --> R{Running?}
@@ -44,7 +51,7 @@ flowchart TD
     Y -->|No| Q
     Y -->|Yes| Z[Advance session]
     Z --> AA{More steps?}
-    AA -->|Yes| AB[Update prompt + voice cue]
+    AA -->|Yes| AB[Update prompt + audio cue]
     AB --> Q
     AA -->|No| AC[finishSession()]
     AC --> AD[Mark complete + reset controls]
@@ -66,6 +73,46 @@ flowchart TD
 
     K -->|Change language| AK[Switch translations]
     AK --> G
+```
+
+## Audio cue flow
+
+`BreathingVoice` uses the locally vendored Howler 2.2.4 core and prefers
+localized prerecorded MP3 cues. Inhale and exhale use the natural `In.mp3` and
+`Out.mp3` recordings; hold and rest remain distinct phase types and files.
+Howler is configured with HTML5 audio, an eight-element unlocked pool, and
+automatic suspension disabled so timer-driven phases remain playable after the
+initial Android user gesture.
+
+A temporary `playerror` is treated as a mobile media lock: the current cue
+waits for Howler's `unlock` event and retries if the phase is still active. It
+does **not** trigger TTS. A `loaderror`, a missing Howler runtime, or an
+unavailable audio engine indicates genuine recording unavailability and may use
+localized system speech. Stop, pause, and phase changes invalidate pending
+unlock retries so an obsolete cue cannot play later.
+
+```mermaid
+flowchart TD
+    A[Phase starts or resumes] --> B[script.js calls BreathingVoice.speak]
+    B --> C[Cancel the previous cue or speech]
+    C --> D[Resolve language and phase audio file]
+    D --> E{Howler audio available?}
+    E -->|Yes| F[Reuse or create cached HTML5 Howl]
+    F --> G[Apply selected volume and play]
+    G --> H{Howler event}
+    H -->|play / end| I[Play and complete prerecorded cue]
+    H -->|playerror| J[Wait for Howler unlock]
+    J --> K{Cue still current?}
+    K -->|Yes| G
+    K -->|No| L[Discard obsolete retry]
+    H -->|loaderror| M[Mark recording unavailable]
+    E -->|No| N{speechSynthesis available?}
+    M --> N
+    N -->|Yes| O[Speak the localized phase label]
+    N -->|No| P[Continue the visual exercise silently]
+
+    Q[Stop or pause] --> R[Cancel cue and pending unlock retry]
+    S[Next phase] --> C
 ```
 
 ## `script.js` flow
