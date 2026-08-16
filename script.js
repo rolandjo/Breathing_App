@@ -1370,7 +1370,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const t = translations[currentLanguage] || {};
         const library = Model.loadUserLibrary();
         const currentValue = selectedProtocolId;
-        elements.presetSelect.innerHTML = '';
+        elements.presetSelect.replaceChildren();
 
         const builtinGroup = document.createElement('optgroup');
         builtinGroup.label = t.builtinsGroup || 'Built-in';
@@ -1457,7 +1457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const menu = elements.exerciseChooserMenu;
         if (!menu) return;
         const items = exerciseChooserItems();
-        menu.innerHTML = '';
+        menu.replaceChildren();
         const groups = [
             { id: 'builtin', label: t.builtinsGroup || 'Built-in' },
             { id: 'user', label: t.myExercises || 'My exercises' }
@@ -1514,7 +1514,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'btn btn-icon';
-        button.innerHTML = `<i class="${icon}" aria-hidden="true"></i>`;
+        const iconEl = document.createElement('i');
+        iconEl.className = icon;
+        iconEl.setAttribute('aria-hidden', 'true');
+        button.appendChild(iconEl);
         button.setAttribute('aria-label', label);
         button.disabled = disabled;
         return button;
@@ -1524,7 +1527,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'btn block-action-btn';
-        button.innerHTML = `<i class="${icon}" aria-hidden="true"></i><span>${text}</span>`;
+        const iconEl = document.createElement('i');
+        iconEl.className = icon;
+        iconEl.setAttribute('aria-hidden', 'true');
+        const textEl = document.createElement('span');
+        textEl.textContent = text;
+        button.append(iconEl, textEl);
         button.setAttribute('aria-label', aria || text);
         button.title = aria || text;
         button.disabled = disabled;
@@ -1794,7 +1802,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const addPhase = document.createElement('button');
         addPhase.type = 'button';
         addPhase.className = 'btn guide-button w-100';
-        addPhase.innerHTML = `<i class="fa-solid fa-plus" aria-hidden="true"></i> <span>${t.addPhase || 'Add phase'}</span>`;
+        const iconEl = document.createElement('i');
+        iconEl.className = 'fa-solid fa-plus';
+        iconEl.setAttribute('aria-hidden', 'true');
+        const textEl = document.createElement('span');
+        textEl.textContent = t.addPhase || 'Add phase';
+        addPhase.append(iconEl, new Text(' '), textEl);
         addPhase.disabled = block.phases.length >= Model.MAX_PHASES;
         addPhase.addEventListener('click', () => {
             markAsCustomIfBuiltin();
@@ -1818,14 +1831,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = document.createElement('div');
         const row = document.createElement('div');
         row.className = 'row g-3';
-        row.innerHTML = `
-            <div class="col-6">
-                <label class="form-label small">${t.holdDuration || 'Hold (s)'}</label>
-            </div>
-            <div class="col-6">
-                <label class="form-label small">${t.holdIncrease || 'Increase each round (s)'}</label>
-            </div>
-        `;
+
+        const col1 = document.createElement('div');
+        col1.className = 'col-6';
+        const label1 = document.createElement('label');
+        label1.className = 'form-label small';
+        label1.textContent = t.holdDuration || 'Hold (s)';
+        col1.appendChild(label1);
+
+        const col2 = document.createElement('div');
+        col2.className = 'col-6';
+        const label2 = document.createElement('label');
+        label2.className = 'form-label small';
+        label2.textContent = t.holdIncrease || 'Increase each round (s)';
+        col2.appendChild(label2);
+
+        row.append(col1, col2);
+
         const durationInput = document.createElement('input');
         durationInput.type = 'number';
         durationInput.className = 'form-control shadow-sm custom-input';
@@ -1910,7 +1932,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const t = translations[currentLanguage] || {};
         const select = elements.addLibraryBlockSelect;
         const items = Model.listInsertableProtocols(workingProtocol);
-        select.innerHTML = '';
+        select.replaceChildren();
         const placeholder = document.createElement('option');
         placeholder.value = '';
         placeholder.textContent = t.fromLibrary || 'From library…';
@@ -1974,7 +1996,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderProtocolEditor() {
         const t = translations[currentLanguage] || {};
-        elements.blockList.innerHTML = '';
+        elements.blockList.replaceChildren();
         elements.protocolRoundsInput.value = workingProtocol.rounds;
         const outline = renderProtocolOutline(t);
         if (outline) elements.blockList.appendChild(outline);
