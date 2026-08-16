@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stopButton: document.getElementById('stop'),
         pauseButton: document.getElementById('pause'),
         toggleModeButton: document.getElementById('toggle-mode'),
+        audioModeControl: document.getElementById('audio-mode'),
         volumeControl: document.getElementById('volume-control'),
         presetSelect: document.getElementById('preset-select'),
         canvas: document.getElementById('breathing-canvas'),
@@ -264,7 +265,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Spoken phase cues
     const voiceGuide = Voice.createVoiceGuide({
         getLanguage: () => currentLanguage,
-        getVolume: () => elements.volumeControl.value
+        getVolume: () => elements.volumeControl.value,
+        getMode: () => elements.audioModeControl.value,
+        onError: detail => console.warn('Audio cue changed playback path.', detail)
     });
 
     function currentStep() {
@@ -1596,6 +1599,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const preferences = {
             protocolId: selectedProtocolId,
             protocol: workingProtocol,
+            audioMode: elements.audioModeControl.value,
             volume: elements.volumeControl.value,
             darkMode: document.body.classList.contains('dark-mode'),
             language: currentLanguage,
@@ -1637,6 +1641,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const preferences = Storage.readJSON('breathingTimerPreferences', null);
 
         if (preferences) {
+            if (Object.values(Voice.AUDIO_MODES).includes(preferences.audioMode)) {
+                elements.audioModeControl.value = preferences.audioMode;
+            }
             setStoredNumber(elements.volumeControl, preferences.volume);
             if (typeof preferences.darkMode === 'boolean') {
                 if (preferences.darkMode) {
@@ -1703,6 +1710,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.volumeControl.addEventListener('input', (event) => {
         event.target.style.setProperty('--range-progress', `${event.target.value * 100}%`);
+        savePreferences();
+    });
+
+    elements.audioModeControl.addEventListener('change', () => {
+        voiceGuide.cancel();
         savePreferences();
     });
 

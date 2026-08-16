@@ -23,6 +23,7 @@ const urlsToCache = [
   './icon-512.png',
   './icon-512-maskable.png',
   './apple-touch-icon.png',
+  './tibetan-singing-bowl-54400.mp3',
   './audio/voice/en/In.mp3',
   './audio/voice/en/Out.mp3',
   './audio/voice/en/Hold.mp3',
