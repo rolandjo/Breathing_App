@@ -23,7 +23,7 @@ const urlsToCache = [
   './icon-512.png',
   './icon-512-maskable.png',
   './apple-touch-icon.png',
-  './tibetan-singing-bowl-54400.mp3',
+  './audio/tibetan-singing-bowl-54400.mp3',
   './audio/voice/en/In.mp3',
   './audio/voice/en/Out.mp3',
   './audio/voice/en/Hold.mp3',
@@ -48,6 +48,116 @@ const urlsToCache = [
   './vendor/fontawesome/webfonts/fa-solid-900.woff2'
 ];
 
+/**
+ * Parses the single byte range used by HTML media elements.
+ * Cached responses contain the complete file, so the service worker must
+ * reconstruct the server's 206 response instead of returning that cached 200
+ * response directly. Android rejects a media source when this contract is
+ * broken even though some desktop browsers tolerate it.
+ *
+ * @param {string} rangeHeader - HTTP Range header value
+ * @param {number} totalLength - complete response body length in bytes
+ * @returns {{start: number, end: number}|null} normalized inclusive range
+ */
+function parseByteRange(rangeHeader, totalLength) {
+  if (!Number.isSafeInteger(totalLength) || totalLength <= 0) return null;
+
+  const match = /^bytes=(\d*)-(\d*)$/.exec(String(rangeHeader).trim());
+  if (!match || (!match[1] && !match[2])) return null;
+
+  if (!match[1]) {
+    const suffixLength = Number(match[2]);
+    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) return null;
+    return {
+      start: Math.max(totalLength - suffixLength, 0),
+      end: totalLength - 1
+    };
+  }
+
+  const start = Number(match[1]);
+  const requestedEnd = match[2] ? Number(match[2]) : totalLength - 1;
+  if (
+    !Number.isSafeInteger(start)
+    || !Number.isSafeInteger(requestedEnd)
+    || start >= totalLength
+    || requestedEnd < start
+  ) {
+    return null;
+  }
+
+  return { start, end: Math.min(requestedEnd, totalLength - 1) };
+}
+
+/**
+ * Builds a standards-compliant partial response from a complete cached asset.
+ * Cache Storage does not vary media entries by Range reliably, so partial
+ * responses are generated in memory and are never written back to the cache.
+ *
+ * @param {Response} fullResponse - complete status-200 media response
+ * @param {string} rangeHeader - requested byte range
+ * @returns {Promise<Response>} 206 response, or 416 for an invalid range
+ */
+async function createPartialResponse(fullResponse, rangeHeader) {
+  const body = await fullResponse.arrayBuffer();
+  const totalLength = body.byteLength;
+  const range = parseByteRange(rangeHeader, totalLength);
+
+  if (!range) {
+    return new Response(null, {
+      status: 416,
+      statusText: 'Range Not Satisfiable',
+      headers: {
+        'Accept-Ranges': 'bytes',
+        'Content-Range': `bytes */${totalLength}`,
+        'Content-Length': '0'
+      }
+    });
+  }
+
+  const headers = new Headers();
+  const contentType = fullResponse.headers.get('Content-Type');
+  const cacheControl = fullResponse.headers.get('Cache-Control');
+  if (contentType) headers.set('Content-Type', contentType);
+  if (cacheControl) headers.set('Cache-Control', cacheControl);
+  headers.set('Accept-Ranges', 'bytes');
+  headers.set('Content-Range', `bytes ${range.start}-${range.end}/${totalLength}`);
+  headers.set('Content-Length', String(range.end - range.start + 1));
+
+  return new Response(body.slice(range.start, range.end + 1), {
+    status: 206,
+    statusText: 'Partial Content',
+    headers
+  });
+}
+
+/**
+ * Serves a media Range request from a complete cached response. When the asset
+ * is not cached yet, it deliberately fetches the complete file first so the
+ * same path remains available to future installed/offline sessions.
+ *
+ * @param {Request} request - incoming request containing a Range header
+ * @returns {Promise<Response>} partial media response
+ */
+async function handleRangeRequest(request) {
+  const rangeHeader = request.headers.get('Range');
+  let fullResponse = await caches.match(request.url);
+
+  if (!fullResponse || fullResponse.status !== 200) {
+    const headers = new Headers(request.headers);
+    headers.delete('Range');
+    const fullRequest = new Request(request, { headers });
+    fullResponse = await fetch(fullRequest);
+
+    if (!fullResponse.ok || fullResponse.status !== 200) return fullResponse;
+    if (new URL(request.url).origin === self.location.origin) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(fullRequest, fullResponse.clone());
+    }
+  }
+
+  return createPartialResponse(fullResponse, rangeHeader);
+}
+
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -58,6 +168,11 @@ self.addEventListener('install', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
+  if (event.request.headers.has('Range')) {
+    event.respondWith(handleRangeRequest(event.request));
+    return;
+  }
 
   if (event.request.mode === 'navigate') {
     event.respondWith(

@@ -44,7 +44,7 @@
         const getMode = options.getMode || (() => AUDIO_MODES.recorded);
         const reportError = options.onError || (() => {});
         const audioBasePath = options.audioBasePath || './audio/voice';
-        const bowlPath = options.bowlPath || './tibetan-singing-bowl-54400.mp3';
+        const bowlPath = options.bowlPath || './audio/tibetan-singing-bowl-54400.mp3';
         const players = new Map();
         let bowlPlayer = null;
         let bowlActionId = 0;
