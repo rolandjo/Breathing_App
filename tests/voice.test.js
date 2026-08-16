@@ -55,14 +55,17 @@ test('plays the prerecorded phase cue for the selected language', () => {
     assert.equal(calls.some(call => call.type === 'speak'), false);
 });
 
-test('hold and rest use the same pause recording', () => {
+test('hold and rest use their dedicated recordings', () => {
     const { calls, guide } = createHarness('fr');
     guide.speak('hold');
     guide.speak('rest');
     const createdSources = calls
         .filter(call => call.type === 'create-audio')
         .map(call => call.player.src);
-    assert.deepEqual(createdSources, ['./audio/voice/fr/Pause.mp3']);
+    assert.deepEqual(createdSources, [
+        './audio/voice/fr/Hold.mp3',
+        './audio/voice/fr/Pause.mp3'
+    ]);
     assert.equal(calls.filter(call => call.type === 'play').length, 2);
 });
 

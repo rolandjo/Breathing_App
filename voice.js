@@ -17,7 +17,7 @@
     const AUDIO_FILES = {
         inhale: 'Inhale.mp3',
         exhale: 'Exhale.mp3',
-        hold: 'Pause.mp3',
+        hold: 'Hold.mp3',
         rest: 'Pause.mp3'
     };
 
