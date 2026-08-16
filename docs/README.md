@@ -32,9 +32,10 @@ flowchart TD
     J --> K{User action}
 
     K -->|Start| L[Create session from selected protocol]
-    L --> M[Set running state]
-    M --> N[Show pause/stop controls]
-    N --> O[Set first guided prompt]
+    L --> M[Set running and countdown state]
+    M --> N[Prepare mobile audio and show Stop]
+    N --> N1[Display 3 → 2 → 1 without consuming exercise time]
+    N1 --> O[Show Pause and set first guided prompt]
     O --> P[Play cue using the explicitly selected audio mode]
 
     P --> Q[renderLoop]
@@ -94,6 +95,9 @@ click still provides an Android-approved user gesture. A `playerror` waits once
 for Howler's `unlock` event; another failure also uses the bowl. No file is
 blacklisted for the rest of the session after a single error. Stop, pause, and
 phase changes invalidate pending retries and cancel every active audio path.
+Before a delayed session countdown begins, `prepare()` silently primes the bowl
+element during the original Start gesture. This preserves Android media
+permission until the first audible phase cue starts three seconds later.
 
 Android's media stack requests MP3 data with an HTTP `Range` header. The service
 worker stores complete audio files for offline use, then slices that complete
@@ -104,6 +108,7 @@ offline asset with a fragment.
 
 ```mermaid
 flowchart TD
+    S[Start gesture before session countdown] --> T[Silently prepare native bowl element]
     A[Phase starts or resumes] --> B[script.js calls BreathingVoice.speak]
     B --> C[Cancel the previous cue or speech]
     C --> D{Selected audio mode}
@@ -197,8 +202,13 @@ flowchart TD
     M -->|Paused| O[Keep drawing paused state]
     O --> L
 
-    M -->|Yes| P[processTimerAt(time)]
-    P --> Q[currentStep() from session]
+    M -->|Yes| P{Preparing session?}
+    P -->|Yes| P1[Update 3 → 2 → 1 from absolute timestamp]
+    P1 --> P2{Countdown complete?}
+    P2 -->|No| L
+    P2 -->|Yes| P3[Start first phase + show Pause + play cue]
+    P3 --> L
+    P -->|No| Q[currentStep() from session]
     Q --> R[Update phase countdown]
     R --> S[Draw active progress marker]
     S --> T{Phase complete?}
@@ -212,11 +222,12 @@ flowchart TD
     Y --> L
 
     AA[Start button] --> AB[start()]
-    AB --> AB1[Hide settings panels]
+    AB --> AB0[Prepare audio during trusted Start gesture]
+    AB0 --> AB1[Hide settings panels]
     AB1 --> AB2[Create session from workingProtocol]
-    AB2 --> AB3[Set flags: running, not paused]
-    AB3 --> AB4[Update UI controls]
-    AB4 --> AB5[Speak first phase]
+    AB2 --> AB3[Set running + countdown flags]
+    AB3 --> AB4[Show Stop and initial value 3]
+    AB4 --> AB5[Keep Pause hidden and defer first cue]
     AB5 --> AB6[updateTimerExecutionMode()]
 
     AC[Pause button / tap-to-toggle] --> AD[toggleSessionPause()]
@@ -266,10 +277,17 @@ sequenceDiagram
     participant C as Canvas/UI
 
     U->>UI: Click Start
+    UI->>V: prepare() during trusted gesture
     UI->>M: createSession(workingProtocol)
     M-->>UI: Session
-    UI->>UI: Set isRunning=true, isPaused=false
-    UI->>UI: Update controls + prompt
+    UI->>UI: Set running + three-second countdown
+    UI->>C: Show Ready and 3 → 2 → 1
+    loop Until preparation reaches zero
+        UI->>UI: Derive remaining value from performance timestamp
+        UI->>C: Keep first step at zero progress
+    end
+    UI->>UI: Set first phase start timestamp
+    UI->>UI: Show Pause control + first prompt
     UI->>S: currentStep()
     S-->>UI: First step
     UI->>V: speak(firstStep.type)

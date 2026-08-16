@@ -30,3 +30,12 @@ test('duration formatting is localized without language-specific branches', () =
     assert.equal(Ui.formatDuration(61.2, labels, true), 'Timp rămas: 1 min 2 sec');
     assert.equal(Ui.formatDuration(60, labels, false), 'Timp total: 1 min 0 sec');
 });
+
+test('pre-session countdown uses absolute timestamps and stops at zero', () => {
+    assert.equal(Ui.countdownSecondsRemaining(1000, 1000, 3), 3);
+    assert.equal(Ui.countdownSecondsRemaining(1000, 1999, 3), 3);
+    assert.equal(Ui.countdownSecondsRemaining(1000, 2000, 3), 2);
+    assert.equal(Ui.countdownSecondsRemaining(1000, 3999, 3), 1);
+    assert.equal(Ui.countdownSecondsRemaining(1000, 4000, 3), 0);
+    assert.equal(Ui.countdownSecondsRemaining(1000, 9000, 3), 0);
+});

@@ -20,5 +20,21 @@
         return `${prefix}: ${minutes} ${labels.minuteShort || 'min'} ${seconds} ${labels.secondShort || 'sec'}`;
     }
 
-    global.BreathingUiUtils = { chooserIndex, formatDuration };
+    /**
+     * Returns the whole number displayed by a pre-session countdown.
+     * Using absolute timestamps instead of decrementing an interval prevents
+     * timer throttling in backgrounded mobile tabs from stretching the delay.
+     *
+     * @param {number} startTime - countdown start from performance.now()
+     * @param {number} currentTime - current performance timestamp
+     * @param {number} durationSeconds - configured countdown duration
+     * @returns {number} remaining whole seconds, clamped to zero
+     */
+    function countdownSecondsRemaining(startTime, currentTime, durationSeconds) {
+        const duration = Math.max(0, Number(durationSeconds) || 0);
+        const elapsedMilliseconds = Math.max(0, (Number(currentTime) || 0) - (Number(startTime) || 0));
+        return Math.max(0, Math.ceil(duration - elapsedMilliseconds / 1000));
+    }
+
+    global.BreathingUiUtils = { chooserIndex, countdownSecondsRemaining, formatDuration };
 })(window);

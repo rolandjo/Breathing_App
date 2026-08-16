@@ -27,7 +27,7 @@
      * it runs only when the user explicitly selects TTS.
      *
      * @param {object} options - injectable browser dependencies and preferences
-     * @returns {{speak: (phaseType: string) => boolean, cancel: () => void}}
+     * @returns {{prepare: () => void, speak: (phaseType: string) => boolean, cancel: () => void}}
      */
     function createVoiceGuide(options = {}) {
         const HowlPlayer = Object.prototype.hasOwnProperty.call(options, 'Howl') ? options.Howl : global.Howl;
@@ -332,7 +332,16 @@
             return speakRecordedCue(phaseType, language, requestId);
         }
 
-        return { speak, cancel };
+        /**
+         * Primes the native fallback while Start still has user activation.
+         * A delayed first cue, such as the session countdown, otherwise causes
+         * Android to treat the later play() call as an untrusted timer action.
+         */
+        function prepare() {
+            if (selectedMode() !== AUDIO_MODES.tts) primeBowl();
+        }
+
+        return { prepare, speak, cancel };
     }
 
     global.BreathingVoice = { AUDIO_FILES, AUDIO_MODES, CUES, LANGUAGE_TAGS, createVoiceGuide };
