@@ -68,6 +68,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let visualizerResizeObserver = null;
     const collapsedBlockIds = new Set();
 
+    let cachedVisualPhases = null;
+    let cachedVisualPhasesBlock = null;
+    let cachedVisualPhasesProtocol = null;
+
     // Translations
     const translations = {
         en: {
@@ -790,9 +794,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function visualPhaseList() {
-        if (isRunning && session) return session.visualPhases();
-        const pattern = Model.firstPatternBlock(workingProtocol);
-        return pattern ? Model.activePhases(pattern.phases) : [];
+        if (isRunning && session) {
+            const block = session.currentBlock();
+            if (cachedVisualPhasesBlock === block) return cachedVisualPhases;
+            cachedVisualPhasesBlock = block;
+            cachedVisualPhasesProtocol = null;
+            cachedVisualPhases = session.visualPhases();
+            return cachedVisualPhases;
+        } else {
+            if (cachedVisualPhasesProtocol === workingProtocol) return cachedVisualPhases;
+            cachedVisualPhasesProtocol = workingProtocol;
+            cachedVisualPhasesBlock = null;
+            const pattern = Model.firstPatternBlock(workingProtocol);
+            cachedVisualPhases = pattern ? Model.activePhases(pattern.phases) : [];
+            return cachedVisualPhases;
+        }
     }
 
     function speakPhase(phaseType = 'hold') {
@@ -2044,6 +2060,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function afterProtocolEdit(rerender = true) {
+        cachedVisualPhasesProtocol = null; // Invalidate cache
         sessionCompleted = false;
         elements.visualizerWrapper.classList.remove('session-complete');
         if (rerender) renderProtocolEditor();
