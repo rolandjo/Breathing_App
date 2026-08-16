@@ -24,10 +24,10 @@
             <h1 class="navbar-brand m-0 fs-4 fw-bold" data-lang-key="title">Breathing Timer</h1>
             <div class="d-flex gap-1 align-items-center">
                 <button class="btn btn-icon fw-bold" id="language-toggle" title="Toggle Language" aria-label="Change language" data-lang-aria="changeLanguage" data-lang-title="changeLanguage">EN</button>
-                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#appearanceOffcanvas" aria-controls="appearanceOffcanvas" aria-label="Open appearance settings" data-lang-aria="openAppearance">
+                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#appearanceOffcanvas" aria-controls="appearanceOffcanvas" aria-label="Open appearance settings" data-lang-aria="openAppearance" title="Open appearance settings" data-lang-title="openAppearance">
                     <i class="fa-solid fa-palette fs-4"></i>
                 </button>
-                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#breathingOffcanvas" aria-controls="breathingOffcanvas" aria-label="Open breathing settings" data-lang-aria="openBreathing">
+                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#breathingOffcanvas" aria-controls="breathingOffcanvas" aria-label="Open breathing settings" data-lang-aria="openBreathing" title="Open breathing settings" data-lang-title="openBreathing">
                     <i class="fa-solid fa-wind fs-4"></i>
                 </button>
             </div>
@@ -68,11 +68,11 @@
                 <i class="fa-solid fa-play" aria-hidden="true"></i>
                 <span data-lang-key="start">Start</span>
             </button>
-            <button id="pause" class="btn btn-warning btn-lg rounded-pill px-4 shadow-lg action-btn session-action d-none">
+            <button id="pause" class="btn btn-warning btn-lg rounded-pill px-4 shadow-lg action-btn session-action d-none" title="Pause" data-lang-title="pause">
                 <i class="fa-solid fa-pause" aria-hidden="true"></i>
                 <span class="control-label" data-lang-key="pause">Pause</span>
             </button>
-            <button id="stop" class="btn btn-danger btn-lg rounded-pill px-4 shadow-lg action-btn session-action d-none">
+            <button id="stop" class="btn btn-danger btn-lg rounded-pill px-4 shadow-lg action-btn session-action d-none" title="Stop" data-lang-title="stop">
                 <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 <span class="control-label" data-lang-key="stop">Stop</span>
             </button>
@@ -83,7 +83,7 @@
     <div class="offcanvas offcanvas-end settings-panel" tabindex="-1" id="appearanceOffcanvas" aria-labelledby="appearanceOffcanvasLabel">
         <div class="offcanvas-header px-4 py-3 border-bottom border-secondary border-opacity-25">
             <h5 class="offcanvas-title fw-bold" id="appearanceOffcanvasLabel"><i class="fa-solid fa-palette me-2"></i><span data-lang-key="appearance">Appearance</span></h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close" data-lang-aria="close"></button>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close" data-lang-aria="close" title="Close" data-lang-title="close"></button>
         </div>
         <div class="offcanvas-body settings-body p-4 custom-scrollbar d-flex flex-column">
             <div class="settings-section settings-card color-settings-card mb-3">
@@ -129,7 +129,7 @@
     <div class="offcanvas offcanvas-end settings-panel" tabindex="-1" id="breathingOffcanvas" aria-labelledby="breathingOffcanvasLabel">
         <div class="offcanvas-header px-4 py-3 border-bottom border-secondary border-opacity-25">
             <h5 class="offcanvas-title fw-bold" id="breathingOffcanvasLabel"><i class="fa-solid fa-wind me-2"></i><span data-lang-key="breathingSettings">Breathing</span></h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close" data-lang-aria="close"></button>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close" data-lang-aria="close" title="Close" data-lang-title="close"></button>
         </div>
         <div class="offcanvas-body settings-body p-4 custom-scrollbar d-flex flex-column">
             <!-- Audio Settings -->
@@ -196,7 +196,7 @@
                         <button type="button" id="save-exercise" class="btn guide-button">
                             <span data-lang-key="saveExercise">Save</span>
                         </button>
-                        <button type="button" id="delete-exercise" class="btn btn-icon delete-exercise-btn d-none" aria-label="Delete saved exercise" data-lang-aria="deleteExercise">
+                        <button type="button" id="delete-exercise" class="btn btn-icon delete-exercise-btn d-none" aria-label="Delete saved exercise" data-lang-aria="deleteExercise" title="Delete saved exercise" data-lang-title="deleteExercise">
                             <i class="fa-solid fa-trash" aria-hidden="true"></i>
                         </button>
                     </div>
@@ -215,7 +215,7 @@
             <div class="modal-content glass-modal border-0 shadow-lg">
                 <div class="modal-header border-bottom border-secondary border-opacity-25">
                     <h5 class="modal-title fw-bold" id="infoModalLabel" data-lang-key="guideTitle">Breathing pattern guide</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" data-lang-aria="close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" data-lang-aria="close" title="Close" data-lang-title="close"></button>
                 </div>
                 <div class="modal-body p-4">
                     <p class="guide-safety-note" data-lang-key="guideSafety">Keep every breath comfortable. Stop and return to normal breathing if you feel dizzy or unwell; practice power rounds only seated or lying down, never in water or while driving.</p>
