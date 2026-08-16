@@ -110,6 +110,17 @@ function createHarness(language = 'en', volume = 0.5, withHowler = true, mode = 
     return { calls, guide, howler, players };
 }
 
+test('prepare silently primes the bowl before a delayed mobile cue', async () => {
+    const { calls, guide } = createHarness('en', 0.5, true, 'bowl');
+
+    guide.prepare();
+    await new Promise(resolve => setImmediate(resolve));
+
+    assert.equal(calls.some(call => call.type === 'play-audio' && call.muted), true);
+    assert.equal(calls.some(call => call.type === 'pause-audio'), true);
+    assert.equal(calls.some(call => call.type === 'speak'), false);
+});
+
 test('plays the prerecorded phase cue through Howler for the selected language', () => {
     const { calls, guide, howler, players } = createHarness('ro', 0.7);
     assert.equal(guide.speak('inhale'), true);

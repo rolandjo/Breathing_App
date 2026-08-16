@@ -5,6 +5,7 @@ A browser breathing timer you can install as a PWA. Follow a visual orb and time
 ## Features
 
 - Guided inhale, hold, exhale, and rest phases with an animated visualizer
+- Three-second preparation countdown before every new session
 - Built-in presets and a protocol editor (stack steps, repeat rounds, reuse other exercises)
 - Saved custom exercises in the browser (`localStorage`)
 - Dark mode, Material-style accent colors, and selectable recorded cues, bowl chime, or system voice
@@ -51,6 +52,10 @@ responses, which Android media playback requires even when the PWA is offline.
 The app never starts synthesized speech
 as an automatic fallback. **System voice (TTS)** is used only when selected
 explicitly; **Bowl chime** is also available as a permanent mode.
+
+Pressing **Start** begins a `3 → 2 → 1` preparation countdown. Exercise timing
+and the first audible phase cue begin only after the countdown reaches zero;
+**Stop** remains available throughout the preparation period.
 
 ## Run locally
 

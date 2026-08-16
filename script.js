@@ -57,11 +57,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let primaryColor = '#006a6a';
     let customAccentColor = '#006a6a';
     let promptTransitionId = 0;
+    const SESSION_COUNTDOWN_SECONDS = 3;
     const PRESET_SWATCH_COLORS = new Set(['#006a6a', '#345ca8', '#6750a4', '#8c4a60', '#386a20']);
 
     // Animation Loop Variables
     let animationFrameId = null;
     let backgroundTimerId = null;
+    let isCountingDown = false;
+    let countdownStartTime = 0;
     let stepStartTime = 0;
     let lastTime = 0;
     let lastProgress = 0;
@@ -500,7 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        processTimerAt(time);
+        processActiveTimerAt(time);
 
         if (isRunning) updateTotalTime(time);
 
@@ -534,6 +537,49 @@ document.addEventListener('DOMContentLoaded', () => {
             const step = currentStep();
             if (step) speakPhase(step.type);
         }
+    }
+
+    /**
+     * Holds the session on its first step until the three-second preparation
+     * period completes. Absolute timestamps keep the countdown accurate when
+     * Android throttles animation frames or switches to the background timer.
+     */
+    function processSessionCountdown(time) {
+        const remaining = UiUtils.countdownSecondsRemaining(
+            countdownStartTime,
+            time,
+            SESSION_COUNTDOWN_SECONDS
+        );
+        if (remaining > 0) {
+            if (elements.phaseTime.textContent !== String(remaining)) {
+                elements.phaseTime.textContent = remaining;
+            }
+            drawFrame(currentStep(), 0, time);
+            return;
+        }
+
+        isCountingDown = false;
+        countdownStartTime = 0;
+        stepStartTime = time;
+        lastTime = time;
+        lastProgress = 0;
+        elements.pauseButton.classList.remove('d-none');
+
+        const firstStep = currentStep();
+        if (firstStep) {
+            setGuidedPrompt(translations[currentLanguage][firstStep.textKey]);
+            speakPhase(firstStep.type);
+        } else {
+            speakPhase();
+        }
+    }
+
+    function processActiveTimerAt(time, catchUp = false) {
+        if (isCountingDown) {
+            processSessionCountdown(time);
+            return;
+        }
+        processTimerAt(time, catchUp);
     }
 
     function processPhase(time) {
@@ -588,6 +634,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function start() {
         if (isRunning) return;
 
+        // Keep mobile media permission attached to the Start gesture even
+        // though the first audible cue is delayed by the countdown.
+        voiceGuide.prepare();
+
         // Hide settings offcanvas if open
         ['appearanceOffcanvas', 'breathingOffcanvas'].forEach(id => {
             const offcanvasElement = document.getElementById(id);
@@ -598,8 +648,10 @@ document.addEventListener('DOMContentLoaded', () => {
         session = Model.createSession(workingProtocol);
         sessionCompleted = false;
         isPaused = false;
-        stepStartTime = performance.now();
-        lastTime = stepStartTime;
+        isCountingDown = true;
+        countdownStartTime = performance.now();
+        stepStartTime = countdownStartTime;
+        lastTime = countdownStartTime;
         lastProgress = 0;
         isRunning = true;
         document.body.classList.add('session-active');
@@ -609,21 +661,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elements.startButton.classList.add('d-none');
         elements.stopButton.classList.remove('d-none');
-        elements.pauseButton.classList.remove('d-none');
+        elements.pauseButton.classList.add('d-none');
 
         updateRemainingCycles();
         updateTotalTime();
 
-        const firstStep = currentStep();
-        if (firstStep) {
-             setGuidedPrompt(translations[currentLanguage][firstStep.textKey]);
-             speakPhase(firstStep.type);
-        } else {
-             speakPhase();
-        }
-
-        stepStartTime = performance.now();
-        lastTime = stepStartTime;
+        setGuidedPrompt(translations[currentLanguage]?.ready || 'Ready to breathe', true);
+        elements.phaseTime.textContent = String(SESSION_COUNTDOWN_SECONDS);
         updateTimerExecutionMode();
     }
 
@@ -642,6 +686,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         isRunning = false;
         isPaused = false;
+        isCountingDown = false;
+        countdownStartTime = 0;
         voiceGuide.cancel();
         sessionCompleted = false;
         session = null;
@@ -657,6 +703,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function finishSession() {
         isRunning = false;
         isPaused = false;
+        isCountingDown = false;
+        countdownStartTime = 0;
         voiceGuide.cancel();
         session = null;
         sessionCompleted = true;
@@ -672,7 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function pause() {
-        if (!isRunning || isPaused) return;
+        if (!isRunning || isPaused || isCountingDown) return;
         isPaused = true;
         voiceGuide.cancel();
         elements.visualizerWrapper.classList.add('is-paused');
@@ -704,7 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isRunning || isPaused) return;
 
         const time = performance.now();
-        processTimerAt(time, true);
+        processActiveTimerAt(time, true);
 
         if (isRunning) updateTotalTime(time);
         lastTime = time;
@@ -734,7 +782,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stopBackgroundTimer();
         if (animationFrameId === null) {
             const time = performance.now();
-            if (isRunning && !isPaused) processTimerAt(time, true);
+            if (isRunning && !isPaused) processActiveTimerAt(time, true);
             lastTime = time;
             animationFrameId = requestAnimationFrame(renderLoop);
         }
@@ -764,6 +812,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (isRunning && session) {
+            if (isCountingDown) {
+                updateTimeDisplay(Model.protocolDuration(workingProtocol));
+                return;
+            }
             updateTimeDisplay(session.remainingSeconds(time, stepStartTime));
             return;
         }
