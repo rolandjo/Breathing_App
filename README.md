@@ -7,7 +7,7 @@ A browser breathing timer you can install as a PWA. Follow a visual orb and time
 - Guided inhale, hold, exhale, and rest phases with an animated visualizer
 - Built-in presets and a protocol editor (stack steps, repeat rounds, reuse other exercises)
 - Saved custom exercises in the browser (`localStorage`)
-- Dark mode, Material-style accent colors, and localized spoken breathing cues with volume control
+- Dark mode, Material-style accent colors, and localized prerecorded breathing cues with system-speech fallback
 - English, Spanish, French, and Romanian
 - Offline support via a service worker
 - Visible semantic version linked to the offline cache release
@@ -45,7 +45,7 @@ The palette icon opens appearance settings: dark mode and accent color (presets 
 
 This is a static site. No build step.
 
-```bash
+```powershell
 # Python
 python -m http.server 8080
 
@@ -72,9 +72,14 @@ Open `index.html` directly if you only need a quick look; install-as-app and off
 | `audio/voice/` | Offline MP3 cues organized by language |
 | `sw.js` | Offline cache |
 | `manifest.json` | PWA name and install metadata |
-| `vendor/` | Bundled Bootstrap and Bootstrap Icons |
+| `vendor/` | Bundled Bootstrap, Font Awesome, and Howler runtime assets and licenses |
 
 Preferences live in `breathingTimerPreferences`. Saved exercises live in `breathingTimerLibrary`.
+
+Howler 2.2.4 is vendored under `vendor/howler/` and loaded before `voice.js`.
+Its reusable HTML5 audio pool handles Android media unlocking without requiring
+a network dependency; the runtime is included in the service-worker cache. See
+`vendor/howler/LICENSE.md` for its MIT license.
 
 ## Releases
 
@@ -82,10 +87,18 @@ The app follows semantic versioning. The canonical version lives in `version.js`
 
 ## Verify changes
 
-```bash
+```powershell
 npm test
 npm run check
 ```
+
+## Development workflow
+
+Repository work follows [`AGENTS.md`](AGENTS.md) and
+[`git-workflow-for-agents.md`](git-workflow-for-agents.md). Any application
+logic change must update the relevant runtime flow in
+[`docs/README.md`](docs/README.md) in the same change. Commands and examples
+should target Windows PowerShell and Node.js 18+.
 
 ## License
 

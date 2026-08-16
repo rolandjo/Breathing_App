@@ -28,6 +28,32 @@ test('service worker derives its cache release from version metadata', () => {
     assert.match(serviceWorker, /event\.request\.destination === 'style'/);
 });
 
+test('every local service-worker precache URL exists', () => {
+    const serviceWorker = readProjectFile('sw.js');
+    const precacheBlock = serviceWorker.match(/const urlsToCache = \[([^]*?)\];/)?.[1] || '';
+    const urls = [...precacheBlock.matchAll(/'\.\/(.*?)'/g)].map(match => match[1]);
+
+    assert.ok(urls.length > 0);
+    for (const url of urls) {
+        const localPath = url || 'index.html';
+        assert.equal(
+            fs.existsSync(path.resolve(__dirname, '..', localPath)),
+            true,
+            `Missing precache asset: ${url}`
+        );
+    }
+});
+
+test('Howler is loaded before the breathing voice module', () => {
+    const index = readProjectFile('index.html');
+    const howlerPosition = index.indexOf('vendor/howler/howler.core.min.js');
+    const voicePosition = index.indexOf('voice.js');
+
+    assert.notEqual(howlerPosition, -1);
+    assert.notEqual(voicePosition, -1);
+    assert.ok(howlerPosition < voicePosition);
+});
+
 test('version is shown at the bottom of both settings drawers', () => {
     const index = readProjectFile('index.html');
     const versionTargets = index.match(/data-app-version/g) || [];

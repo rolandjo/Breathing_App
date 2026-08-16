@@ -1,4 +1,4 @@
-/** Prerecorded breathing cues with system speech as a playback fallback. */
+/** Prerecorded breathing cues with system speech as a genuine-error fallback. */
 (function (global) {
     const LANGUAGE_TAGS = {
         en: 'en-US',
@@ -15,14 +15,27 @@
     };
 
     const AUDIO_FILES = {
-        inhale: 'Inhale.mp3',
-        exhale: 'Exhale.mp3',
+        inhale: 'In.mp3',
+        exhale: 'Out.mp3',
         hold: 'Hold.mp3',
         rest: 'Pause.mp3'
     };
 
+    /**
+     * Creates the phase-cue player used by the breathing session.
+     *
+     * Howler's HTML5 audio pool is deliberately used here. Android browsers
+     * unlock media elements during a user gesture; reusing that unlocked pool
+     * prevents later timer-driven phases from being mistaken for missing audio.
+     * A play error waits for Howler's unlock event, while only a load error
+     * switches to TTS because that indicates the recording is unavailable.
+     *
+     * @param {object} options - injectable browser dependencies and preferences
+     * @returns {{speak: (phaseType: string) => boolean, cancel: () => void}}
+     */
     function createVoiceGuide(options = {}) {
-        const AudioPlayer = Object.prototype.hasOwnProperty.call(options, 'Audio') ? options.Audio : global.Audio;
+        const HowlPlayer = Object.prototype.hasOwnProperty.call(options, 'Howl') ? options.Howl : global.Howl;
+        const howler = Object.prototype.hasOwnProperty.call(options, 'Howler') ? options.Howler : global.Howler;
         const synth = Object.prototype.hasOwnProperty.call(options, 'speechSynthesis')
             ? options.speechSynthesis
             : global.speechSynthesis;
@@ -33,8 +46,14 @@
         const getVolume = options.getVolume || (() => 0.5);
         const audioBasePath = options.audioBasePath || './audio/voice';
         const players = new Map();
-        let activePlayer = null;
+        const unavailablePlayers = new Set();
+        let activeCue = null;
         let playbackId = 0;
+
+        if (howler) {
+            howler.html5PoolSize = 8;
+            howler.autoSuspend = false;
+        }
 
         function selectedLanguage() {
             const language = getLanguage();
@@ -45,20 +64,27 @@
             return Math.min(1, Math.max(0, Number(getVolume()) || 0));
         }
 
-        function stopAudio() {
-            if (!activePlayer) return;
-            activePlayer.pause?.();
+        function removeUnlockRetry(cue) {
+            if (!cue?.unlockHandler) return;
+            cue.player.off?.('unlock', cue.unlockHandler);
+            cue.unlockHandler = null;
+        }
+
+        function stopActiveCue() {
+            if (!activeCue) return;
+            const cue = activeCue;
+            activeCue = null;
+            removeUnlockRetry(cue);
             try {
-                activePlayer.currentTime = 0;
+                cue.player.stop(cue.soundId);
             } catch (_) {
-                // Some browsers do not allow seeking until media metadata is ready.
+                // A failed or not-yet-loaded media node may already be detached.
             }
-            activePlayer = null;
         }
 
         function cancel() {
             playbackId += 1;
-            stopAudio();
+            stopActiveCue();
             synth?.cancel?.();
         }
 
@@ -82,45 +108,102 @@
             return true;
         }
 
+        function isCurrentCue(player, soundId) {
+            return activeCue
+                && activeCue.player === player
+                && (soundId == null || activeCue.soundId == null || activeCue.soundId === soundId);
+        }
+
+        function handleLoadError(player, soundId) {
+            if (!isCurrentCue(player, soundId)) return;
+            const cue = activeCue;
+            unavailablePlayers.add(cue.key);
+            activeCue = null;
+            removeUnlockRetry(cue);
+            speakWithSystemVoice(cue.phaseType, cue.language);
+        }
+
+        function playRecordedCue(cue) {
+            try {
+                cue.player.volume(selectedVolume());
+                cue.soundId = cue.player.play();
+                return true;
+            } catch (_) {
+                if (activeCue === cue) activeCue = null;
+                return speakWithSystemVoice(cue.phaseType, cue.language);
+            }
+        }
+
+        function handlePlayError(player, soundId) {
+            if (!isCurrentCue(player, soundId) || activeCue.unlockHandler) return;
+            const cue = activeCue;
+            const requestId = cue.requestId;
+
+            /** Retry only after the browser confirms that media playback is unlocked. */
+            cue.unlockHandler = () => {
+                cue.unlockHandler = null;
+                if (requestId !== playbackId || activeCue !== cue) return;
+                try {
+                    cue.player.stop(cue.soundId);
+                } catch (_) {
+                    // The rejected sound ID may not have entered Howler's pool.
+                }
+                cue.soundId = null;
+                playRecordedCue(cue);
+            };
+            player.once?.('unlock', cue.unlockHandler);
+        }
+
+        function handleEnd(player, soundId) {
+            if (isCurrentCue(player, soundId)) activeCue = null;
+        }
+
         function getPlayer(language, phaseType) {
-            if (!AudioPlayer) return null;
+            if (!HowlPlayer || howler?.noAudio) return null;
             const file = AUDIO_FILES[phaseType] || AUDIO_FILES.hold;
             const key = `${language}/${file}`;
+            if (unavailablePlayers.has(key)) return null;
+
             if (!players.has(key)) {
-                const player = new AudioPlayer(`${audioBasePath}/${key}`);
-                player.preload = 'auto';
-                players.set(key, player);
+                try {
+                    let player;
+                    player = new HowlPlayer({
+                        src: [`${audioBasePath}/${key}`],
+                        format: ['mp3'],
+                        html5: true,
+                        preload: true,
+                        pool: 2,
+                        onloaderror: soundId => handleLoadError(player, soundId),
+                        onplayerror: soundId => handlePlayError(player, soundId),
+                        onend: soundId => handleEnd(player, soundId)
+                    });
+                    players.set(key, player);
+                } catch (_) {
+                    unavailablePlayers.add(key);
+                    return null;
+                }
             }
-            return players.get(key);
+            return { key, player: players.get(key) };
         }
 
         function speak(phaseType) {
             cancel();
-            const id = playbackId;
+            const requestId = playbackId;
             const language = selectedLanguage();
-            const player = getPlayer(language, phaseType);
+            const entry = getPlayer(language, phaseType);
 
-            if (!player) return speakWithSystemVoice(phaseType, language);
+            if (!entry) return speakWithSystemVoice(phaseType, language);
 
-            activePlayer = player;
-            player.volume = selectedVolume();
-            player.currentTime = 0;
-            player.onended = () => {
-                if (activePlayer === player) activePlayer = null;
+            activeCue = {
+                key: entry.key,
+                player: entry.player,
+                soundId: null,
+                phaseType,
+                language,
+                requestId,
+                unlockHandler: null
             };
-
-            try {
-                const playResult = player.play();
-                playResult?.catch?.(() => {
-                    if (id !== playbackId || activePlayer !== player) return;
-                    activePlayer = null;
-                    speakWithSystemVoice(phaseType, language);
-                });
-                return true;
-            } catch (_) {
-                activePlayer = null;
-                return speakWithSystemVoice(phaseType, language);
-            }
+            return playRecordedCue(activeCue);
         }
 
         return { speak, cancel };
