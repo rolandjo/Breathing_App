@@ -39,6 +39,8 @@ behavior, or media playback.
 | `voice.js` | Prerecorded cue playback, cancellation, volume, and TTS fallback |
 | `storage.js` | Defensive `localStorage` access |
 | `ui-utils.js` | Pure formatting and keyboard-navigation helpers |
+| `translation-manager.js` | Translation lookup, fallback, and supported-language metadata |
+| `translations/` | Explicit per-language UI, guide, preset, and TTS catalogs |
 | `version.js` | Canonical application version and service-worker cache name |
 | `sw.js` | Offline precache and runtime cache behavior |
 | `audio/voice/` | Localized prerecorded audio assets |
@@ -212,7 +214,7 @@ fixtures.
 - Keep CSP restrictive. Runtime scripts, media, fonts, and styles should remain
   same-origin unless a reviewed requirement says otherwise.
 - When changing translations or guide content, update all four supported
-  languages and keep translation tests passing.
+  language catalogs under `translations/` and keep translation tests passing.
 
 ## Validation
 

@@ -1,18 +1,8 @@
 /** Prerecorded breathing cues with system speech as a genuine-error fallback. */
 (function (global) {
-    const LANGUAGE_TAGS = {
-        en: 'en-US',
-        es: 'es-ES',
-        fr: 'fr-FR',
-        ro: 'ro-RO'
-    };
-
-    const CUES = {
-        en: { inhale: 'Inhale', exhale: 'Exhale', hold: 'Hold', rest: 'Hold' },
-        es: { inhale: 'Inhala', exhale: 'Exhala', hold: 'Mantén', rest: 'Mantén' },
-        fr: { inhale: 'Inspirez', exhale: 'Expirez', hold: 'Maintenez', rest: 'Maintenez' },
-        ro: { inhale: 'Inspiră', exhale: 'Expiră', hold: 'Ține', rest: 'Ține' }
-    };
+    const TranslationManager = global.BreathingTranslationManager;
+    const LANGUAGE_TAGS = TranslationManager?.speechLanguages || {};
+    const CUES = TranslationManager?.voiceCues || {};
 
     const AUDIO_FILES = {
         inhale: 'In.mp3',

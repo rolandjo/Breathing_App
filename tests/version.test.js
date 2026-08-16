@@ -44,14 +44,22 @@ test('every local service-worker precache URL exists', () => {
     }
 });
 
-test('Howler is loaded before the breathing voice module', () => {
+test('translations and Howler are loaded before their consumers', () => {
     const index = readProjectFile('index.html');
+    const englishPosition = index.indexOf('translations/english.js');
+    const translationManagerPosition = index.indexOf('translation-manager.js');
     const howlerPosition = index.indexOf('vendor/howler/howler.core.min.js');
     const voicePosition = index.indexOf('voice.js');
+    const scriptPosition = index.indexOf('script.js');
 
+    assert.notEqual(englishPosition, -1);
+    assert.notEqual(translationManagerPosition, -1);
     assert.notEqual(howlerPosition, -1);
     assert.notEqual(voicePosition, -1);
+    assert.ok(englishPosition < translationManagerPosition);
+    assert.ok(translationManagerPosition < voicePosition);
     assert.ok(howlerPosition < voicePosition);
+    assert.ok(translationManagerPosition < scriptPosition);
 });
 
 test('version is shown at the bottom of both settings drawers', () => {
