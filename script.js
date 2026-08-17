@@ -659,6 +659,72 @@ document.addEventListener('DOMContentLoaded', () => {
         syncSelectedPresetInfo();
     }
 
+    const PRESET_GUIDE_KEYS = {
+        box: { title: 'boxTitle', body: 'boxDescription' },
+        relaxing: { title: 'relaxingTitle', body: 'relaxingDescription' },
+        equal: { title: 'equalTitle', body: 'equalDescription' },
+        power_rounds: { title: 'powerRoundsTitle', body: 'powerRoundsDescription' }
+    };
+
+    function syncSelectedPresetInfo() {
+        const button = elements.selectedPresetInfo;
+        if (!button) return;
+        const hasGuide = Boolean(PRESET_GUIDE_KEYS[selectedProtocolId]);
+        button.classList.toggle('d-none', !hasGuide);
+        button.disabled = !hasGuide;
+    }
+
+    /**
+     * Opens the guide dialog. A builtin id shows only that pattern’s title and
+     * copy. Omitting an id (Protocols Guide) shows the full catalog.
+     *
+     * @param {string} [id]
+     * @param {Element} [trigger] - opener used to restore focus after dismiss
+     */
+    function openPresetGuide(id, trigger) {
+        const modalEl = document.getElementById('infoModal');
+        if (!modalEl || !window.bootstrap?.Modal) return;
+        const presetId = PRESET_GUIDE_KEYS[id] ? id : '';
+        modalEl.dataset.guidePresetId = presetId;
+        modalEl.classList.toggle('is-single-guide', Boolean(presetId));
+        applyGuideView(modalEl);
+        window.bootstrap.Modal.getOrCreateInstance(modalEl).show(trigger);
+    }
+
+    function applyGuideView(modalEl) {
+        const id = modalEl.dataset.guidePresetId;
+        const keys = PRESET_GUIDE_KEYS[id];
+        const t = translations[currentLanguage] || {};
+        const accordion = modalEl.querySelector('#breathingPatterns');
+        const safety = modalEl.querySelector('.guide-safety-note');
+        const catalogTitle = modalEl.querySelector('#infoModalLabel');
+        const singleTitle = modalEl.querySelector('#guide-single-title');
+        const singleWrap = modalEl.querySelector('#guide-single');
+        const singleBody = modalEl.querySelector('#guide-single-body');
+        const showSingle = Boolean(keys);
+
+        accordion?.classList.toggle('d-none', showSingle);
+        safety?.classList.toggle('d-none', showSingle);
+        catalogTitle?.classList.toggle('d-none', showSingle);
+        singleTitle?.classList.toggle('d-none', !showSingle);
+        singleWrap?.classList.toggle('d-none', !showSingle);
+
+        if (showSingle) {
+            if (singleTitle) singleTitle.textContent = t[keys.title] || '';
+            if (singleBody) singleBody.textContent = t[keys.body] || '';
+            modalEl.setAttribute('aria-labelledby', 'guide-single-title');
+            return;
+        }
+
+        modalEl.setAttribute('aria-labelledby', 'infoModalLabel');
+        if (catalogTitle && t.guideTitle) catalogTitle.textContent = t.guideTitle;
+        modalEl.querySelectorAll('#breathingPatterns .accordion-collapse').forEach((panel) => {
+            const collapse = window.bootstrap?.Collapse.getOrCreateInstance(panel, { toggle: false });
+            if (!collapse) return;
+            if (panel.id === 'boxBreathing') collapse.show();
+            else collapse.hide();
+        });
+    }
 
     function markAsCustomIfBuiltin() {
         if (selectedProtocolId !== 'custom' && Model.PRESET_IDS.includes(selectedProtocolId)) {
@@ -1023,7 +1089,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.selectedPresetInfo?.addEventListener('click', (event) => {
         event.stopPropagation();
         exerciseChooser.closeExerciseChooser(false);
-        openPresetGuide(selectedProtocolId);
+        openPresetGuide(selectedProtocolId, event.currentTarget);
     });
 
     document.getElementById('info-button')?.addEventListener('click', () => {
@@ -1036,6 +1102,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('infoModal')?.addEventListener('show.bs.modal', (event) => {
         applyGuideView(event.currentTarget);
+    });
+
+    /**
+     * Bootstrap sets aria-hidden on the dialog before it moves focus out.
+     * Chromium then blocks that attribute while Close (or another control)
+     * inside the dialog still has focus. Blur first so the hidden state is
+     * legal; show(trigger) restores focus to the opener afterward.
+     */
+    document.getElementById('infoModal')?.addEventListener('hide.bs.modal', (event) => {
+        const focused = document.activeElement;
+        if (focused instanceof HTMLElement && event.currentTarget.contains(focused)) {
+            focused.blur();
+        }
     });
 
     function setNavDestinationActive(name) {

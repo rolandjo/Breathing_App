@@ -117,6 +117,8 @@ keeps a **Guide** button that opens the full pattern catalog. On Home, a circula
 **i** sits beside Remaining Cycles when the selected exercise is Box, Relaxing,
 Equal, or Power rounds; that control opens a dialog with only that pattern’s
 title and description. Custom and saved exercises have no Home info control.
+Dismissing the dialog blurs Close before Bootstrap sets `aria-hidden`, because
+Chromium refuses to hide an ancestor while a descendant still has focus.
 
 ## Audio cue flow
 
