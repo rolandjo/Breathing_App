@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         audioModeControl: document.getElementById('audio-mode'),
         volumeControl: document.getElementById('volume-control'),
         presetSelect: document.getElementById('preset-select'),
+        selectedPresetInfo: document.getElementById('selected-preset-info'),
         canvas: document.getElementById('breathing-canvas'),
         visualizerWrapper: document.querySelector('.visualizer-wrapper'),
         phaseTime: document.getElementById('phase-time'),
@@ -631,6 +632,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- TIMER CONTROL ---
 
+    function hideSettingsSheets() {
+        ['appearanceOffcanvas', 'breathingOffcanvas', 'profileOffcanvas'].forEach((id) => {
+            const offcanvasElement = document.getElementById(id);
+            const bsOffcanvas = offcanvasElement && window.bootstrap?.Offcanvas.getInstance(offcanvasElement);
+            if (bsOffcanvas) bsOffcanvas.hide();
+        });
+    }
+
     function start() {
         if (isRunning) return;
 
@@ -638,12 +647,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // though the first audible cue is delayed by the countdown.
         voiceGuide.prepare();
 
-        // Hide settings offcanvas if open
-        ['appearanceOffcanvas', 'breathingOffcanvas'].forEach(id => {
-            const offcanvasElement = document.getElementById(id);
-            const bsOffcanvas = offcanvasElement && window.bootstrap?.Offcanvas.getInstance(offcanvasElement);
-            if (bsOffcanvas) bsOffcanvas.hide();
-        });
+        hideSettingsSheets();
+        setNavDestinationActive('home');
 
         session = Model.createSession(workingProtocol);
         sessionCompleted = false;
@@ -915,9 +920,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const parts = summary.blocks.map(formatBlockSummary);
             if (summary.rounds > 1) parts.push(`${summary.rounds} ${t.rounds || 'rounds'}`);
             elements.practiceSummary.textContent = parts.join(' · ');
-            return;
+        } else {
+            elements.practiceSummary.textContent = `${summary.phases.join(' · ')} · ${summary.cycles} ${t.cycles || 'cycles'}`;
         }
-        elements.practiceSummary.textContent = `${summary.phases.join(' · ')} · ${summary.cycles} ${t.cycles || 'cycles'}`;
+        syncSelectedPresetInfo();
     }
 
     function refreshPresetSelect() {
@@ -971,6 +977,72 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
         return items;
+    }
+
+    const PRESET_GUIDE_KEYS = {
+        box: { title: 'boxTitle', body: 'boxDescription' },
+        relaxing: { title: 'relaxingTitle', body: 'relaxingDescription' },
+        equal: { title: 'equalTitle', body: 'equalDescription' },
+        power_rounds: { title: 'powerRoundsTitle', body: 'powerRoundsDescription' }
+    };
+
+    function syncSelectedPresetInfo() {
+        const button = elements.selectedPresetInfo;
+        if (!button) return;
+        const hasGuide = Boolean(PRESET_GUIDE_KEYS[selectedProtocolId]);
+        button.classList.toggle('d-none', !hasGuide);
+        button.disabled = !hasGuide;
+    }
+
+    /**
+     * Opens the guide dialog. A builtin id shows only that pattern’s title and
+     * copy. Omitting an id (Protocols Guide) shows the full catalog.
+     *
+     * @param {string} [id]
+     */
+    function openPresetGuide(id) {
+        const modalEl = document.getElementById('infoModal');
+        if (!modalEl || !window.bootstrap?.Modal) return;
+        const presetId = PRESET_GUIDE_KEYS[id] ? id : '';
+        modalEl.dataset.guidePresetId = presetId;
+        modalEl.classList.toggle('is-single-guide', Boolean(presetId));
+        applyGuideView(modalEl);
+        window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+
+    function applyGuideView(modalEl) {
+        const id = modalEl.dataset.guidePresetId;
+        const keys = PRESET_GUIDE_KEYS[id];
+        const t = translations[currentLanguage] || {};
+        const accordion = modalEl.querySelector('#breathingPatterns');
+        const safety = modalEl.querySelector('.guide-safety-note');
+        const catalogTitle = modalEl.querySelector('#infoModalLabel');
+        const singleTitle = modalEl.querySelector('#guide-single-title');
+        const singleWrap = modalEl.querySelector('#guide-single');
+        const singleBody = modalEl.querySelector('#guide-single-body');
+        const showSingle = Boolean(keys);
+
+        accordion?.classList.toggle('d-none', showSingle);
+        safety?.classList.toggle('d-none', showSingle);
+        catalogTitle?.classList.toggle('d-none', showSingle);
+        singleTitle?.classList.toggle('d-none', !showSingle);
+        singleWrap?.classList.toggle('d-none', !showSingle);
+
+        if (showSingle) {
+            if (singleTitle) singleTitle.textContent = t[keys.title] || '';
+            if (singleBody) singleBody.textContent = t[keys.body] || '';
+            modalEl.setAttribute('aria-labelledby', 'guide-single-title');
+            return;
+        }
+
+        modalEl.setAttribute('aria-labelledby', 'infoModalLabel');
+        if (catalogTitle && t.guideTitle) catalogTitle.textContent = t.guideTitle;
+        modalEl.querySelectorAll('#breathingPatterns .accordion-collapse').forEach((panel) => {
+            const collapse = window.bootstrap?.Collapse.getOrCreateInstance(panel, { toggle: false });
+            if (!collapse) return;
+            if (panel.id === 'boxBreathing') collapse.show();
+            else collapse.hide();
+        });
     }
 
     function setExerciseChooserOpen(open) {
@@ -1975,20 +2047,58 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    elements.selectedPresetInfo?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        closeExerciseChooser(false);
+        openPresetGuide(selectedProtocolId);
+    });
+
+    document.getElementById('info-button')?.addEventListener('click', () => {
+        const modalEl = document.getElementById('infoModal');
+        if (!modalEl) return;
+        modalEl.dataset.guidePresetId = '';
+        modalEl.classList.remove('is-single-guide');
+        applyGuideView(modalEl);
+    });
+
+    document.getElementById('infoModal')?.addEventListener('show.bs.modal', (event) => {
+        applyGuideView(event.currentTarget);
+    });
+
     function setNavDestinationActive(name) {
         document.querySelectorAll('.nav-destination[data-nav]').forEach((button) => {
-            const isActive = Boolean(name) && button.dataset.nav === name;
+            const isActive = button.dataset.nav === name;
             button.classList.toggle('is-active', isActive);
             button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
         });
     }
 
-    ['appearanceOffcanvas', 'breathingOffcanvas'].forEach(id => {
+    const sheetNavNames = {
+        appearanceOffcanvas: 'settings',
+        breathingOffcanvas: 'protocols',
+        profileOffcanvas: 'profile'
+    };
+
+    function isSheetShowing(id) {
+        return document.getElementById(id)?.classList.contains('show');
+    }
+
+    document.getElementById('nav-home')?.addEventListener('click', () => {
+        hideSettingsSheets();
+        setNavDestinationActive('home');
+    });
+
+    Object.keys(sheetNavNames).forEach((id) => {
         const panel = document.getElementById(id);
         if (!panel) return;
-        const navName = id === 'appearanceOffcanvas' ? 'appearance' : 'breathing';
         panel.addEventListener('show.bs.offcanvas', () => {
-            setNavDestinationActive(navName);
+            Object.keys(sheetNavNames).forEach((otherId) => {
+                if (otherId === id) return;
+                const other = document.getElementById(otherId);
+                const otherInstance = other && window.bootstrap?.Offcanvas.getInstance(other);
+                if (otherInstance) otherInstance.hide();
+            });
+            setNavDestinationActive(sheetNavNames[id]);
             panel.classList.add('is-sliding-in');
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
@@ -1997,7 +2107,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
         panel.addEventListener('hidden.bs.offcanvas', () => {
-            setNavDestinationActive('');
+            const anotherOpen = Object.keys(sheetNavNames).some((otherId) => otherId !== id && isSheetShowing(otherId));
+            if (!anotherOpen) {
+                setNavDestinationActive('home');
+            }
         });
     });
 

@@ -77,7 +77,7 @@ flowchart TD
     K -->|Change language| AK[Switch translations]
     AK --> G
 
-    K -->|Navigation bar or rail| AL[Open Appearance or Breathing sheet]
+    K -->|Navigation bar or rail| AL["Home, Protocols, Profile, or Settings"]
     AL --> K
 ```
 
@@ -85,9 +85,22 @@ The shell follows Material 3 Expressive scaffold: a tinted top app bar, a
 content pane with margin/gutter spacing, and one navigation region. Below 840px
 that region is a full-width bottom bar (active state is a pill behind the icon
 only). From 840px it becomes a left rail; from 1200px the rail expands with
-icon-and-label destinations. Opening Appearance or Breathing marks that
-destination active until the sheet closes. Language stays an action, not a
-selected destination. Start, Pause, and Stop remain in the content pane.
+icon-and-label destinations. Home is the timer pane. Protocols opens the
+protocol editor sheet. Profile is a placeholder sheet for future stats and
+account integration. Settings opens language, audio, and appearance.
+Opening Protocols, Profile, or Settings marks that destination until the
+sheet closes, then Home becomes active again. Start, Pause, and Stop remain
+in the content pane.
+
+Protocols, Profile, and Settings open as **modal side sheets** over the pane
+(Bootstrap offcanvas, M3 Expressive chrome). Each sheet uses a headline and
+circular close with no header divider and tonal grouped cards. Settings also
+has outlined fields, a language cycle chip, and a thick accent volume slider.
+Scrim tap dismisses the sheet; Home and Start dismiss any open sheet. Protocols
+keeps a **Guide** button that opens the full pattern catalog. On Home, a circular
+**i** sits beside Remaining Cycles when the selected exercise is Box, Relaxing,
+Equal, or Power rounds; that control opens a dialog with only that pattern’s
+title and description. Custom and saved exercises have no Home info control.
 
 ## Audio cue flow
 
@@ -189,7 +202,7 @@ flowchart TD
     J --> J3[Accent swatches + color picker]
     J --> J4[Preset select]
     J --> J5[Protocol editor controls]
-    J --> J6[Language toggle in navigation bar/rail]
+    J --> J6[Language toggle in Settings]
     J --> J7[Keyboard shortcuts]
     J --> J8[Visibility + resize listeners]
     J --> J9[Exercise chooser menu listeners]

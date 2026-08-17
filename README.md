@@ -8,7 +8,7 @@ A browser breathing timer you can install as a PWA. Follow a visual orb and time
 - Three-second preparation countdown before every new session
 - Built-in presets and a protocol editor (stack steps, repeat rounds, reuse other exercises)
 - Saved custom exercises in the browser (`localStorage`)
-- Dark mode, Material 3 Expressive scaffold (bottom navigation, large-screen rail, pane margins, large type, spring sheets), and selectable recorded cues, bowl chime, or system voice
+- Dark mode, Material 3 Expressive scaffold (Home / Protocols / Profile / Settings navigation, pane margins, large type, spring sheets), and selectable recorded cues, bowl chime, or system voice
 - English, Spanish, French, and Romanian
 - Offline support via a service worker
 - Visible semantic version linked to the offline cache release
@@ -28,7 +28,7 @@ Power breaths and recovery breath are building blocks. You can reuse them (or an
 
 ## Protocol editor
 
-Open **Breathing** from the navigation bar (wind) or tap the exercise name on the home screen.
+Open **Protocols** from the navigation bar or tap the exercise name on the home screen. **Guide** in Protocols opens the full pattern catalog. On Home, an **i** sits beside Remaining Cycles for Box, Relaxing, Equal, and Power rounds and opens only that pattern’s guide.
 
 - **Add pattern** — phases and cycle count
 - **Add hold** — timed retention, optionally increasing each round
@@ -40,11 +40,11 @@ Built-in presets cannot be overwritten. Saving a changed builtin creates a new u
 
 ## Appearance
 
-The navigation bar (rail on large screens) opens **Appearance** (palette) and **Breathing** (wind), and cycles the UI language. Appearance includes dark mode and accent color (presets or a custom color). The accent drives the primary UI color and the idle orb.
+**Settings** in the navigation bar (rail on large screens) opens language, audio, dark mode, and accent color (presets or a custom color). The accent drives the primary UI color and the idle orb. **Profile** is a placeholder for future session stats and account integration.
 
 ## Audio cues
 
-Open **Breathing** and choose an audio mode. **Recorded breathing sounds** is
+Open **Settings** and choose an audio mode. **Recorded breathing sounds** is
 the default and uses the localized `In`, `Out`, `Hold`, and `Pause` recordings.
 If Android cannot load a recording, the app retries it through a second browser
 audio backend and then uses the bowl chime. Cached audio supports HTTP byte-range
