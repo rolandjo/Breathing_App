@@ -33,24 +33,29 @@
     --md-sys-color-shadow: #000000;
     --md-sys-color-scrim: #000000;
 
-    --md-sys-shape-corner-small: 8px;
-    --md-sys-shape-corner-medium: 12px;
-    --md-sys-shape-corner-large: 16px;
-    --md-sys-shape-corner-extra-large: 28px;
+    --md-sys-shape-corner-small: 12px;
+    --md-sys-shape-corner-medium: 20px;
+    --md-sys-shape-corner-large: 28px;
+    --md-sys-shape-corner-extra-large: 40px;
+    --md-sys-shape-corner-hero: 48px;
     --md-sys-shape-corner-full: 999px;
 
-    --md-sys-motion-duration-short: 120ms;
-    --md-sys-motion-duration-medium: 300ms;
-    --md-sys-motion-duration-long: 500ms;
+    --md-sys-motion-duration-short: 160ms;
+    --md-sys-motion-duration-medium: 380ms;
+    --md-sys-motion-duration-long: 560ms;
     --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
-    --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
-    --md-sys-motion-easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --md-sys-motion-easing-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+    --md-sys-motion-easing-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
     --md-sys-elevation-level-1: 0 1px 2px rgba(0, 0, 0, 0.12), 0 1px 3px 1px rgba(0, 0, 0, 0.06);
     --md-sys-elevation-level-2: 0 1px 2px rgba(0, 0, 0, 0.14), 0 2px 6px 2px rgba(0, 0, 0, 0.08);
     --md-sys-elevation-level-3: 0 4px 8px 3px rgba(0, 0, 0, 0.10), 0 1px 3px rgba(0, 0, 0, 0.16);
 
     --md-sys-typescale-font: Roboto, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --md-sys-typescale-display-size: clamp(2.25rem, 7vw, 3.25rem);
+    --md-sys-typescale-headline-size: clamp(1.5rem, 4vw, 2rem);
+    --md-sys-typescale-title-size: 1.375rem;
+    --md-sys-typescale-label-size: 0.75rem;
     --orb-color-inhale: #006a6a;
     --orb-color-hold: #6750a4;
     --orb-color-exhale: #9c4146;
@@ -113,6 +118,7 @@ body {
 }
 
 .custom-navbar,
+.bottom-toolbar,
 .settings-panel,
 .settings-card,
 .visualizer-wrapper,
@@ -130,18 +136,69 @@ body {
 
 /* M3 top app bar */
 .custom-navbar {
-    min-height: 72px;
-    background: color-mix(in srgb, var(--md-sys-color-surface) 92%, transparent);
-    border-bottom: 1px solid var(--md-sys-color-outline-variant);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    min-height: 64px;
+    background: color-mix(in srgb, var(--md-sys-color-surface) 88%, transparent);
+    border-bottom: 0;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 .navbar-brand {
     color: var(--md-sys-color-on-surface) !important;
-    font-size: 1.375rem !important;
-    font-weight: 500 !important;
-    letter-spacing: 0;
+    font-size: var(--md-sys-typescale-title-size) !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.02em;
+}
+
+.bottom-toolbar {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    z-index: 1030;
+    display: flex;
+    width: min(420px, calc(100vw - 24px));
+    padding: 8px;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 4px;
+    color: var(--md-sys-color-on-surface);
+    background: var(--md-sys-color-surface-container-high);
+    border: 0;
+    border-radius: var(--md-sys-shape-corner-hero);
+    box-shadow: var(--md-sys-elevation-level-3);
+    transform: translateX(-50%);
+    transition:
+        transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-spring),
+        opacity var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized);
+}
+
+.toolbar-action {
+    display: flex;
+    flex: 1 1 0;
+    min-height: 64px;
+    padding: 8px 6px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--md-sys-color-on-surface-variant);
+    background: transparent;
+    border: 0;
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    font-size: var(--md-sys-typescale-label-size);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.toolbar-action i {
+    font-size: 1.25rem;
+    color: var(--md-sys-color-primary);
+}
+
+.toolbar-action:hover,
+.toolbar-action:focus-visible {
+    color: var(--md-sys-color-on-surface);
+    background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
 }
 
 .app-version-badge {
@@ -188,20 +245,17 @@ body {
     background: color-mix(in srgb, var(--md-sys-color-on-surface) 12%, transparent);
 }
 
-#language-toggle {
-    width: auto;
-    min-width: 48px;
-    padding-inline: 14px;
+#language-toggle .toolbar-lang-code {
+    display: grid;
+    min-width: 2rem;
+    min-height: 1.25rem;
+    place-items: center;
     color: var(--md-sys-color-on-secondary-container);
     background: var(--md-sys-color-secondary-container);
-    font-size: 0.875rem;
-    font-weight: 700;
-}
-
-#language-toggle:hover,
-#language-toggle:active {
-    color: var(--md-sys-color-on-secondary-container);
-    background: color-mix(in srgb, var(--md-sys-color-on-secondary-container) 12%, var(--md-sys-color-secondary-container));
+    border-radius: var(--md-sys-shape-corner-full);
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
 }
 
 /* M3 switch */
@@ -276,8 +330,8 @@ body {
 /* Main breathing experience */
 .timer-main-container {
     min-height: 100svh;
-    padding: 82px 24px 16px;
-    gap: 12px;
+    padding: 72px 24px 120px;
+    gap: 16px;
 }
 
 .practice-intro {
@@ -295,16 +349,17 @@ body {
 
 .practice-selector {
     display: inline-flex;
-    padding: 4px 10px;
+    padding: 8px 16px;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     color: var(--md-sys-color-on-surface);
     background: transparent;
     border: 0;
-    border-radius: var(--md-sys-shape-corner-medium);
-    font-size: clamp(1.5rem, 4vw, 2rem);
-    font-weight: 600;
-    letter-spacing: -0.025em;
+    border-radius: var(--md-sys-shape-corner-large);
+    font-size: var(--md-sys-typescale-display-size);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
 }
 
 .practice-selector:hover {
@@ -336,7 +391,7 @@ body {
     color: var(--md-sys-color-on-surface);
     background: var(--md-sys-color-surface-container-high);
     border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: var(--md-sys-shape-corner-large);
+    border-radius: var(--md-sys-shape-corner-extra-large);
     box-shadow: var(--md-sys-elevation-level-3);
     opacity: 0;
     visibility: hidden;
@@ -344,9 +399,9 @@ body {
     transform: translateX(-50%) scale(0.96);
     transform-origin: top center;
     transition:
-        opacity 220ms var(--md-sys-motion-easing-emphasized),
-        transform 220ms var(--md-sys-motion-easing-emphasized),
-        visibility 0s linear 220ms;
+        opacity var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-spring),
+        transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-spring),
+        visibility 0s linear var(--md-sys-motion-duration-medium);
 }
 
 .practice-chooser.is-open .exercise-menu {
@@ -410,12 +465,12 @@ body {
 }
 
 .guided-prompt {
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     color: var(--md-sys-color-on-surface);
-    font-size: clamp(1.35rem, 3vw, 1.75rem) !important;
-    font-weight: 500 !important;
-    line-height: 1.2;
-    letter-spacing: -0.02em;
+    font-size: var(--md-sys-typescale-headline-size) !important;
+    font-weight: 600 !important;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
     will-change: opacity, transform, filter;
 }
 
@@ -486,58 +541,71 @@ body {
 }
 
 .cycle-badge {
-    padding: 8px 16px !important;
+    padding: 10px 18px !important;
     color: var(--md-sys-color-on-secondary-container) !important;
     background: var(--md-sys-color-secondary-container) !important;
     border: 0;
     border-radius: var(--md-sys-shape-corner-full) !important;
-    font-size: 0.875rem !important;
-    font-weight: 600;
+    font-size: 0.8125rem !important;
+    font-weight: 700;
 }
 
-#total-time {
+#total-time,
+.assist-chip-text {
     color: var(--md-sys-color-on-surface-variant) !important;
     font-size: 0.875rem;
 }
 
 /* M3 action buttons */
 .main-controls {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
+}
+
+.session-button-group {
+    isolation: isolate;
+}
+
+.session-button-group .action-btn + .action-btn {
+    margin-inline-start: 6px;
 }
 
 .action-btn {
     min-width: 112px;
-    min-height: 48px;
-    padding: 0 24px !important;
+    min-height: 64px;
+    padding: 0 28px !important;
     border: 0;
-    border-radius: var(--md-sys-shape-corner-full) !important;
+    border-radius: var(--md-sys-shape-corner-extra-large) !important;
     box-shadow: none !important;
-    font-size: 0.875rem;
+    font-size: 1rem;
     font-weight: 700;
     letter-spacing: 0.01em;
-    transition: box-shadow 180ms ease, filter 180ms ease, transform 180ms ease;
+    transition: box-shadow var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-spring),
+        filter var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+        transform var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-spring);
 }
 
 .action-btn i {
     font-size: 1.25rem;
 }
 
-.primary-action {
+.primary-action,
+.fab-start {
     display: inline-flex;
-    min-width: 168px;
-    min-height: 56px;
+    min-width: 188px;
+    min-height: 72px;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    font-size: 1rem;
+    gap: 10px;
+    font-size: 1.125rem;
+    box-shadow: var(--md-sys-elevation-level-2) !important;
 }
 
 .session-action {
     display: inline-flex;
-    min-width: 56px;
-    width: 56px;
-    height: 56px;
+    min-width: 72px;
+    width: 72px;
+    height: 72px;
     padding: 0 !important;
     align-items: center;
     justify-content: center;
@@ -562,10 +630,18 @@ body.session-active button {
     cursor: pointer;
 }
 
-body.session-active .custom-navbar {
+body.session-active .custom-navbar,
+body.session-active .bottom-toolbar {
     opacity: 0;
-    transform: translateY(-100%);
     pointer-events: none;
+}
+
+body.session-active .custom-navbar {
+    transform: translateY(-100%);
+}
+
+body.session-active .bottom-toolbar {
+    transform: translateX(-50%) translateY(120%);
 }
 
 body.session-active .practice-intro,
@@ -627,10 +703,11 @@ body.session-active .cycle-badge {
 
 /* M3 modal side sheet */
 .settings-panel {
-    width: min(440px, 100vw);
+    width: min(480px, 100vw);
     color: var(--md-sys-color-on-surface);
     background: var(--md-sys-color-surface-container-low);
-    border-left: 1px solid var(--md-sys-color-outline-variant);
+    border-left: 0;
+    border-radius: var(--md-sys-shape-corner-hero) 0 0 var(--md-sys-shape-corner-hero);
     box-shadow: var(--md-sys-elevation-level-3);
 }
 
@@ -691,9 +768,9 @@ body.dark-mode .btn-close {
 }
 
 .offcanvas-end.settings-panel {
-    --bs-offcanvas-transition: transform 420ms var(--md-sys-motion-easing-emphasized);
+    --bs-offcanvas-transition: transform 480ms var(--md-sys-motion-easing-spring);
     transform: translateX(100%);
-    transition: transform 420ms var(--md-sys-motion-easing-emphasized);
+    transition: transform 480ms var(--md-sys-motion-easing-spring);
 }
 
 .offcanvas-end.settings-panel.show {
@@ -1478,6 +1555,7 @@ select:focus-visible {
 
     .timer-main-container {
         padding-inline: 16px;
+        padding-bottom: 112px;
     }
 
     .visualizer-wrapper {

@@ -17,19 +17,10 @@
     <meta name="theme-color" content="#1a1a1a">
 </head>
 <body class="dark-mode">
-    <!-- Navbar / Header -->
+    <!-- Top app bar -->
     <nav class="navbar custom-navbar fixed-top">
-        <div class="container-fluid px-4 py-3 d-flex justify-content-between align-items-center">
-            <h1 class="navbar-brand m-0 fs-4 fw-bold" data-lang-key="title">Breathing Timer</h1>
-            <div class="d-flex gap-1 align-items-center">
-                <button class="btn btn-icon fw-bold" id="language-toggle" title="Toggle Language" aria-label="Change language" data-lang-aria="changeLanguage" data-lang-title="changeLanguage">EN</button>
-                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#appearanceOffcanvas" aria-controls="appearanceOffcanvas" aria-label="Open appearance settings" data-lang-aria="openAppearance" title="Open appearance settings" data-lang-title="openAppearance">
-                    <i class="fa-solid fa-palette fs-4"></i>
-                </button>
-                <button class="btn btn-icon" type="button" data-bs-toggle="offcanvas" data-bs-target="#breathingOffcanvas" aria-controls="breathingOffcanvas" aria-label="Open breathing settings" data-lang-aria="openBreathing" title="Open breathing settings" data-lang-title="openBreathing">
-                    <i class="fa-solid fa-wind fs-4"></i>
-                </button>
-            </div>
+        <div class="container-fluid px-4 py-3 d-flex justify-content-center align-items-center">
+            <h1 class="navbar-brand m-0" data-lang-key="title">Breathing Timer</h1>
         </div>
     </nav>
 
@@ -47,7 +38,7 @@
         </div>
 
         <!-- Text Prompt -->
-        <div id="guided-prompt" class="guided-prompt text-center fs-2 fw-light" data-lang-key="ready" role="status" aria-live="polite" aria-atomic="true">Ready to breathe</div>
+        <div id="guided-prompt" class="guided-prompt text-center" data-lang-key="ready" role="status" aria-live="polite" aria-atomic="true">Ready to breathe</div>
         
         <!-- Canvas Visualizer -->
         <div class="visualizer-wrapper position-relative d-flex justify-content-center align-items-center">
@@ -57,26 +48,41 @@
         
         <!-- Time and Cycles Display -->
         <div class="time-cycles-container mb-4 text-center">
-            <span id="remaining-cycles" class="badge rounded-pill cycle-badge px-3 py-2 fs-6 mb-2" data-lang-key="remainingCycles">Remaining Cycles: 0</span>
-            <div id="total-time" class="text-muted small fw-medium mt-1" data-lang-key="totalTime">Total Time: 0 min 0 sec</div>
+            <span id="remaining-cycles" class="badge rounded-pill cycle-badge assist-chip px-3 py-2 fs-6 mb-2" data-lang-key="remainingCycles">Remaining Cycles: 0</span>
+            <div id="total-time" class="assist-chip-text text-muted small fw-medium mt-1" data-lang-key="totalTime">Total Time: 0 min 0 sec</div>
         </div>
 
         <!-- Controls -->
-        <div class="main-controls d-flex gap-3 mt-2">
-            <button id="start" class="btn btn-primary btn-lg rounded-pill px-5 shadow-lg action-btn primary-action">
+        <div class="main-controls session-button-group d-flex gap-0 mt-2">
+            <button id="start" class="btn btn-primary btn-lg action-btn primary-action fab-start">
                 <i class="fa-solid fa-play" aria-hidden="true"></i>
                 <span data-lang-key="start">Start</span>
             </button>
-            <button id="pause" class="btn btn-warning btn-lg rounded-pill px-4 shadow-lg action-btn session-action d-none" title="Pause" data-lang-title="pause">
+            <button id="pause" class="btn btn-warning btn-lg action-btn session-action d-none" title="Pause" data-lang-title="pause">
                 <i class="fa-solid fa-pause" aria-hidden="true"></i>
                 <span class="control-label" data-lang-key="pause">Pause</span>
             </button>
-            <button id="stop" class="btn btn-danger btn-lg rounded-pill px-4 shadow-lg action-btn session-action d-none" title="Stop" data-lang-title="stop">
+            <button id="stop" class="btn btn-danger btn-lg action-btn session-action d-none" title="Stop" data-lang-title="stop">
                 <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 <span class="control-label" data-lang-key="stop">Stop</span>
             </button>
         </div>
     </main>
+
+    <nav class="bottom-toolbar" aria-label="App tools">
+        <button class="toolbar-action" type="button" data-bs-toggle="offcanvas" data-bs-target="#appearanceOffcanvas" aria-controls="appearanceOffcanvas" aria-label="Open appearance settings" data-lang-aria="openAppearance" title="Open appearance settings" data-lang-title="openAppearance">
+            <i class="fa-solid fa-palette" aria-hidden="true"></i>
+            <span data-lang-key="appearance">Appearance</span>
+        </button>
+        <button class="toolbar-action" type="button" data-bs-toggle="offcanvas" data-bs-target="#breathingOffcanvas" aria-controls="breathingOffcanvas" aria-label="Open breathing settings" data-lang-aria="openBreathing" title="Open breathing settings" data-lang-title="openBreathing">
+            <i class="fa-solid fa-wind" aria-hidden="true"></i>
+            <span data-lang-key="breathingSettings">Breathing</span>
+        </button>
+        <button class="toolbar-action" type="button" id="language-toggle" title="Toggle Language" aria-label="Change language" data-lang-aria="changeLanguage" data-lang-title="changeLanguage">
+            <span class="toolbar-lang-code">EN</span>
+            <span data-lang-key="language">Language</span>
+        </button>
+    </nav>
 
     <!-- Appearance -->
     <div class="offcanvas offcanvas-end settings-panel" tabindex="-1" id="appearanceOffcanvas" aria-labelledby="appearanceOffcanvasLabel">

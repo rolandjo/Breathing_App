@@ -76,6 +76,9 @@ flowchart TD
 
     K -->|Change language| AK[Switch translations]
     AK --> G
+
+    K -->|Bottom toolbar| AL[Open Appearance or Breathing sheet]
+    AL --> K
 ```
 
 ## Audio cue flow
@@ -178,7 +181,7 @@ flowchart TD
     J --> J3[Accent swatches + color picker]
     J --> J4[Preset select]
     J --> J5[Protocol editor controls]
-    J --> J6[Language toggle]
+    J --> J6[Language toggle in bottom toolbar]
     J --> J7[Keyboard shortcuts]
     J --> J8[Visibility + resize listeners]
     J --> J9[Exercise chooser menu listeners]

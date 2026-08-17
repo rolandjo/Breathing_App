@@ -107,6 +107,7 @@
             "volumeControl": "Volum",
             "close": "Închide",
             "changeLanguage": "Schimbă limba",
+            "language": "Limbă",
             "openAppearance": "Deschide setările de aspect",
             "openBreathing": "Deschide setările de respirație",
             "chooseExercise": "Alege exercițiul",

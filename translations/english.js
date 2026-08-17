@@ -107,6 +107,7 @@
             "volumeControl": "Volume",
             "close": "Close",
             "changeLanguage": "Change language",
+            "language": "Language",
             "openAppearance": "Open appearance settings",
             "openBreathing": "Open breathing settings",
             "chooseExercise": "Choose exercise",

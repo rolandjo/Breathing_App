@@ -873,6 +873,11 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.pauseButton.setAttribute('aria-label', label?.textContent || (paused ? 'Resume' : 'Pause'));
     }
 
+    function syncLanguageToggleLabel() {
+        const code = elements.languageToggle?.querySelector('.toolbar-lang-code') || elements.languageToggle;
+        if (code) code.textContent = currentLanguage.toUpperCase();
+    }
+
     function protocolDisplayName(protocol) {
         if (protocol.nameKey && translations[currentLanguage]?.[protocol.nameKey]) {
             return translations[currentLanguage][protocol.nameKey];
@@ -1708,7 +1713,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (translations[preferences.language]) {
                 currentLanguage = preferences.language;
-                elements.languageToggle.textContent = currentLanguage.toUpperCase();
+                syncLanguageToggleLabel();
             }
             if (/^#[0-9a-f]{6}$/i.test(preferences.primaryColor || '')) {
                 primaryColor = preferences.primaryColor;
@@ -1754,7 +1759,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (event) => {
         if (!isRunning) return;
         const target = event.target;
-        if (target instanceof Element && target.closest('button, a, input, select, textarea, label, .offcanvas, .modal, .practice-chooser')) {
+        if (target instanceof Element && target.closest('button, a, input, select, textarea, label, .offcanvas, .modal, .practice-chooser, .bottom-toolbar')) {
             return;
         }
         toggleSessionPause();
@@ -1867,7 +1872,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const languages = TranslationManager.supportedLanguages;
         const currentIndex = languages.indexOf(currentLanguage);
         currentLanguage = languages[(currentIndex + 1) % languages.length];
-        elements.languageToggle.textContent = currentLanguage.toUpperCase();
+        syncLanguageToggleLabel();
         document.documentElement.lang = currentLanguage;
         translatePage();
         savePreferences();
