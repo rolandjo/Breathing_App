@@ -56,6 +56,11 @@
     --md-sys-typescale-headline-size: clamp(1.5rem, 4vw, 2rem);
     --md-sys-typescale-title-size: 1.375rem;
     --md-sys-typescale-label-size: 0.75rem;
+    --md-sys-spacing-margin: 16px;
+    --md-sys-spacing-gutter: 8px;
+    --md-sys-spacing-pane: 24px;
+    --md-sys-nav-bar-height: 80px;
+    --md-sys-rail-width: 88px;
     --orb-color-inhale: #006a6a;
     --orb-color-hold: #6750a4;
     --orb-color-exhale: #9c4146;
@@ -104,7 +109,7 @@ body.dark-mode {
 }
 
 body {
-    min-height: 100vh;
+    min-height: 100svh;
     margin: 0;
     overflow-x: hidden;
     font-family: var(--md-sys-typescale-font);
@@ -118,7 +123,7 @@ body {
 }
 
 .custom-navbar,
-.bottom-toolbar,
+.app-nav,
 .settings-panel,
 .settings-card,
 .visualizer-wrapper,
@@ -134,71 +139,119 @@ body {
     transition-timing-function: var(--md-sys-motion-easing-standard);
 }
 
-/* M3 top app bar */
+.app-scaffold {
+    display: grid;
+    min-height: 100svh;
+    min-height: 100dvh;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+        "bar"
+        "pane"
+        "nav";
+}
+
+.top-app-bar,
 .custom-navbar {
-    min-height: 64px;
-    background: color-mix(in srgb, var(--md-sys-color-surface) 88%, transparent);
-    border-bottom: 0;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-}
-
-.navbar-brand {
-    color: var(--md-sys-color-on-surface) !important;
-    font-size: var(--md-sys-typescale-title-size) !important;
-    font-weight: 600 !important;
-    letter-spacing: -0.02em;
-}
-
-.bottom-toolbar {
-    position: fixed;
-    left: 50%;
-    bottom: 16px;
-    z-index: 1030;
+    grid-area: bar;
     display: flex;
-    width: min(420px, calc(100vw - 24px));
-    padding: 8px;
-    align-items: stretch;
-    justify-content: space-between;
-    gap: 4px;
-    color: var(--md-sys-color-on-surface);
-    background: var(--md-sys-color-surface-container-high);
-    border: 0;
-    border-radius: var(--md-sys-shape-corner-hero);
-    box-shadow: var(--md-sys-elevation-level-3);
-    transform: translateX(-50%);
+    min-height: 64px;
+    padding: 8px var(--md-sys-spacing-margin);
+    align-items: center;
+    justify-content: center;
+    color: var(--md-sys-color-on-primary-container);
+    background: var(--md-sys-color-primary-container);
+    border-bottom: 0;
     transition:
-        transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-spring),
+        transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized),
         opacity var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized);
 }
 
-.toolbar-action {
+.top-app-bar-title,
+.navbar-brand {
+    margin: 0;
+    padding: 10px 28px;
+    color: var(--md-sys-color-on-surface) !important;
+    background: var(--md-sys-color-surface-container-lowest);
+    border-radius: var(--md-sys-shape-corner-full);
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+}
+
+.app-nav {
+    grid-area: nav;
+    z-index: 1030;
+    display: flex;
+    min-height: calc(var(--md-sys-nav-bar-height) + env(safe-area-inset-bottom, 0px));
+    padding: 12px var(--md-sys-spacing-margin) calc(12px + env(safe-area-inset-bottom, 0px));
+    align-items: flex-start;
+    justify-content: space-around;
+    gap: var(--md-sys-spacing-gutter);
+    color: var(--md-sys-color-on-primary-container);
+    background: var(--md-sys-color-primary-container);
+    border: 0;
+    transition:
+        transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized),
+        opacity var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized);
+}
+
+.nav-destination {
     display: flex;
     flex: 1 1 0;
-    min-height: 64px;
-    padding: 8px 6px;
+    min-width: 0;
+    max-width: 168px;
+    padding: 0;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 4px;
-    color: var(--md-sys-color-on-surface-variant);
+    color: inherit;
     background: transparent;
     border: 0;
-    border-radius: var(--md-sys-shape-corner-extra-large);
     font-size: var(--md-sys-typescale-label-size);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.04em;
 }
 
-.toolbar-action i {
+.nav-indicator {
+    display: grid;
+    width: 64px;
+    height: 32px;
+    place-items: center;
+    border-radius: var(--md-sys-shape-corner-full);
     font-size: 1.25rem;
-    color: var(--md-sys-color-primary);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
 }
 
-.toolbar-action:hover,
-.toolbar-action:focus-visible {
-    color: var(--md-sys-color-on-surface);
-    background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
+.nav-destination:hover .nav-indicator,
+.nav-destination:focus-visible .nav-indicator {
+    background: color-mix(in srgb, var(--md-sys-color-on-primary-container) 12%, transparent);
+}
+
+.nav-destination.is-active .nav-indicator {
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.nav-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#language-toggle .toolbar-lang-code {
+    display: grid;
+    min-width: 1.75rem;
+    min-height: 1.25rem;
+    place-items: center;
+    color: inherit;
+    background: transparent;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
 }
 
 .app-version-badge {
@@ -243,19 +296,6 @@ body {
 .btn-icon:active {
     transform: scale(0.94);
     background: color-mix(in srgb, var(--md-sys-color-on-surface) 12%, transparent);
-}
-
-#language-toggle .toolbar-lang-code {
-    display: grid;
-    min-width: 2rem;
-    min-height: 1.25rem;
-    place-items: center;
-    color: var(--md-sys-color-on-secondary-container);
-    background: var(--md-sys-color-secondary-container);
-    border-radius: var(--md-sys-shape-corner-full);
-    font-size: 0.6875rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
 }
 
 /* M3 switch */
@@ -328,10 +368,12 @@ body {
 }
 
 /* Main breathing experience */
+.content-pane,
 .timer-main-container {
-    min-height: 100svh;
-    padding: 72px 24px 120px;
-    gap: 16px;
+    grid-area: pane;
+    min-height: 0;
+    padding: var(--md-sys-spacing-pane) var(--md-sys-spacing-margin);
+    gap: var(--md-sys-spacing-gutter);
 }
 
 .practice-intro {
@@ -630,18 +672,27 @@ body.session-active button {
     cursor: pointer;
 }
 
-body.session-active .custom-navbar,
-body.session-active .bottom-toolbar {
+body.session-active .top-app-bar,
+body.session-active .app-nav {
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
     opacity: 0;
     pointer-events: none;
 }
 
-body.session-active .custom-navbar {
+body.session-active .top-app-bar {
     transform: translateY(-100%);
 }
 
-body.session-active .bottom-toolbar {
-    transform: translateX(-50%) translateY(120%);
+body.session-active .app-nav {
+    transform: translateY(100%);
+}
+
+body.session-active .content-pane,
+body.session-active .timer-main-container {
+    margin: 0;
+    border-radius: 0;
 }
 
 body.session-active .practice-intro,
@@ -1540,22 +1591,109 @@ select:focus-visible {
     to { opacity: 0.16; transform: scale(0.94); }
 }
 
-@media (max-width: 576px) {
-    .custom-navbar .container-fluid {
-        padding-inline: 16px !important;
+@media (min-width: 600px) {
+    :root {
+        --md-sys-spacing-margin: 24px;
+        --md-sys-spacing-gutter: 24px;
+        --md-sys-spacing-pane: 32px;
+    }
+}
+
+@media (min-width: 840px) {
+    .app-scaffold {
+        grid-template-columns: var(--md-sys-rail-width) minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-areas:
+            "bar bar"
+            "nav pane";
     }
 
-    .navbar-brand {
-        font-size: 1.125rem !important;
+    .app-nav {
+        flex-direction: column;
+        min-height: 0;
+        padding: 16px 8px 24px;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 12px;
+        border-end-end-radius: var(--md-sys-shape-corner-extra-large);
     }
 
-    .custom-navbar .gap-3 {
-        gap: 4px !important;
+    .nav-destination {
+        flex: 0 0 auto;
+        max-width: none;
+        width: 100%;
+        gap: 6px;
     }
 
+    .nav-indicator {
+        width: 56px;
+        margin-inline: auto;
+    }
+
+    .content-pane,
     .timer-main-container {
-        padding-inline: 16px;
-        padding-bottom: 112px;
+        margin: 0 var(--md-sys-spacing-margin) var(--md-sys-spacing-margin) var(--md-sys-spacing-gutter);
+        padding: var(--md-sys-spacing-pane);
+        background: var(--md-sys-color-surface-container-lowest);
+        border-radius: var(--md-sys-shape-corner-extra-large);
+    }
+
+    body.session-active .app-nav {
+        transform: translateX(-100%);
+    }
+
+    body.session-active .app-scaffold {
+        grid-template-columns: 0 minmax(0, 1fr);
+    }
+}
+
+@media (min-width: 1200px) {
+    :root {
+        --md-sys-rail-width: 220px;
+        --md-sys-spacing-margin: 24px;
+        --md-sys-spacing-gutter: 24px;
+    }
+
+    .app-nav {
+        padding: 20px 16px 28px;
+        align-items: stretch;
+    }
+
+    .nav-destination {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 12px;
+        padding: 4px 8px 4px 4px;
+        border-radius: var(--md-sys-shape-corner-full);
+    }
+
+    .nav-indicator {
+        width: 56px;
+        margin-inline: 0;
+        flex: 0 0 auto;
+    }
+
+    .nav-destination.is-active {
+        color: var(--md-sys-color-on-secondary-container);
+        background: var(--md-sys-color-secondary-container);
+    }
+
+    .nav-destination.is-active .nav-indicator {
+        background: transparent;
+        color: inherit;
+    }
+
+    .nav-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+}
+
+@media (max-width: 576px) {
+    .navbar-brand,
+    .top-app-bar-title {
+        font-size: 0.9375rem !important;
+        padding-inline: 20px;
     }
 
     .visualizer-wrapper {

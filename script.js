@@ -1759,7 +1759,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (event) => {
         if (!isRunning) return;
         const target = event.target;
-        if (target instanceof Element && target.closest('button, a, input, select, textarea, label, .offcanvas, .modal, .practice-chooser, .bottom-toolbar')) {
+        if (target instanceof Element && target.closest('button, a, input, select, textarea, label, .offcanvas, .modal, .practice-chooser, .app-nav')) {
             return;
         }
         toggleSessionPause();
@@ -1975,16 +1975,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function setNavDestinationActive(name) {
+        document.querySelectorAll('.nav-destination[data-nav]').forEach((button) => {
+            const isActive = Boolean(name) && button.dataset.nav === name;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+    }
+
     ['appearanceOffcanvas', 'breathingOffcanvas'].forEach(id => {
         const panel = document.getElementById(id);
         if (!panel) return;
+        const navName = id === 'appearanceOffcanvas' ? 'appearance' : 'breathing';
         panel.addEventListener('show.bs.offcanvas', () => {
+            setNavDestinationActive(navName);
             panel.classList.add('is-sliding-in');
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     panel.classList.remove('is-sliding-in');
                 });
             });
+        });
+        panel.addEventListener('hidden.bs.offcanvas', () => {
+            setNavDestinationActive('');
         });
     });
 

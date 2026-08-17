@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Breathing Timer</title>
     <!-- Content Security Policy to prevent XSS and malicious injections -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; img-src 'self' data:; media-src 'self'; object-src 'none'; base-uri 'none';">
@@ -17,15 +17,28 @@
     <meta name="theme-color" content="#1a1a1a">
 </head>
 <body class="dark-mode">
-    <!-- Top app bar -->
-    <nav class="navbar custom-navbar fixed-top">
-        <div class="container-fluid px-4 py-3 d-flex justify-content-center align-items-center">
-            <h1 class="navbar-brand m-0" data-lang-key="title">Breathing Timer</h1>
-        </div>
+    <div class="app-scaffold">
+    <header class="top-app-bar custom-navbar">
+        <h1 class="top-app-bar-title navbar-brand m-0" data-lang-key="title">Breathing Timer</h1>
+    </header>
+
+    <nav class="app-nav" aria-label="App tools">
+        <button class="nav-destination" type="button" data-nav="appearance" data-bs-toggle="offcanvas" data-bs-target="#appearanceOffcanvas" aria-controls="appearanceOffcanvas" aria-pressed="false" aria-label="Open appearance settings" data-lang-aria="openAppearance" title="Open appearance settings" data-lang-title="openAppearance">
+            <span class="nav-indicator"><i class="fa-solid fa-palette" aria-hidden="true"></i></span>
+            <span class="nav-label" data-lang-key="appearance">Appearance</span>
+        </button>
+        <button class="nav-destination" type="button" data-nav="breathing" data-bs-toggle="offcanvas" data-bs-target="#breathingOffcanvas" aria-controls="breathingOffcanvas" aria-pressed="false" aria-label="Open breathing settings" data-lang-aria="openBreathing" title="Open breathing settings" data-lang-title="openBreathing">
+            <span class="nav-indicator"><i class="fa-solid fa-wind" aria-hidden="true"></i></span>
+            <span class="nav-label" data-lang-key="breathingSettings">Breathing</span>
+        </button>
+        <button class="nav-destination" type="button" id="language-toggle" title="Toggle Language" aria-label="Change language" data-lang-aria="changeLanguage" data-lang-title="changeLanguage">
+            <span class="nav-indicator"><span class="toolbar-lang-code">EN</span></span>
+            <span class="nav-label" data-lang-key="language">Language</span>
+        </button>
     </nav>
 
     <!-- Main Breathing Area -->
-    <main class="timer-main-container d-flex flex-column justify-content-center align-items-center">
+    <main class="content-pane timer-main-container d-flex flex-column justify-content-center align-items-center">
         <div class="practice-intro text-center">
             <div class="practice-chooser">
                 <button class="practice-selector" type="button" id="exercise-chooser-button" aria-haspopup="listbox" aria-expanded="false" aria-controls="exercise-chooser-menu" aria-label="Choose exercise" data-lang-aria="chooseExercise">
@@ -68,21 +81,7 @@
             </button>
         </div>
     </main>
-
-    <nav class="bottom-toolbar" aria-label="App tools">
-        <button class="toolbar-action" type="button" data-bs-toggle="offcanvas" data-bs-target="#appearanceOffcanvas" aria-controls="appearanceOffcanvas" aria-label="Open appearance settings" data-lang-aria="openAppearance" title="Open appearance settings" data-lang-title="openAppearance">
-            <i class="fa-solid fa-palette" aria-hidden="true"></i>
-            <span data-lang-key="appearance">Appearance</span>
-        </button>
-        <button class="toolbar-action" type="button" data-bs-toggle="offcanvas" data-bs-target="#breathingOffcanvas" aria-controls="breathingOffcanvas" aria-label="Open breathing settings" data-lang-aria="openBreathing" title="Open breathing settings" data-lang-title="openBreathing">
-            <i class="fa-solid fa-wind" aria-hidden="true"></i>
-            <span data-lang-key="breathingSettings">Breathing</span>
-        </button>
-        <button class="toolbar-action" type="button" id="language-toggle" title="Toggle Language" aria-label="Change language" data-lang-aria="changeLanguage" data-lang-title="changeLanguage">
-            <span class="toolbar-lang-code">EN</span>
-            <span data-lang-key="language">Language</span>
-        </button>
-    </nav>
+    </div>
 
     <!-- Appearance -->
     <div class="offcanvas offcanvas-end settings-panel" tabindex="-1" id="appearanceOffcanvas" aria-labelledby="appearanceOffcanvasLabel">

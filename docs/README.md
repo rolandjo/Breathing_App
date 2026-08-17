@@ -77,9 +77,17 @@ flowchart TD
     K -->|Change language| AK[Switch translations]
     AK --> G
 
-    K -->|Bottom toolbar| AL[Open Appearance or Breathing sheet]
+    K -->|Navigation bar or rail| AL[Open Appearance or Breathing sheet]
     AL --> K
 ```
+
+The shell follows Material 3 Expressive scaffold: a tinted top app bar, a
+content pane with margin/gutter spacing, and one navigation region. Below 840px
+that region is a full-width bottom bar (active state is a pill behind the icon
+only). From 840px it becomes a left rail; from 1200px the rail expands with
+icon-and-label destinations. Opening Appearance or Breathing marks that
+destination active until the sheet closes. Language stays an action, not a
+selected destination. Start, Pause, and Stop remain in the content pane.
 
 ## Audio cue flow
 
@@ -181,7 +189,7 @@ flowchart TD
     J --> J3[Accent swatches + color picker]
     J --> J4[Preset select]
     J --> J5[Protocol editor controls]
-    J --> J6[Language toggle in bottom toolbar]
+    J --> J6[Language toggle in navigation bar/rail]
     J --> J7[Keyboard shortcuts]
     J --> J8[Visibility + resize listeners]
     J --> J9[Exercise chooser menu listeners]
