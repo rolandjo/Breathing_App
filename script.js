@@ -1986,7 +1986,19 @@ document.addEventListener('DOMContentLoaded', () => {
     initialize();
 });
 
-if ('serviceWorker' in navigator) {
+(function enablePwaOnHttp() {
+    const servedOverHttp = location.protocol === 'http:' || location.protocol === 'https:';
+    if (!servedOverHttp) return;
+
+    if (!document.querySelector('link[rel="manifest"]')) {
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = 'manifest.json';
+        document.head.appendChild(manifestLink);
+    }
+
+    if (!('serviceWorker' in navigator)) return;
+
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').then((registration) => {
             console.log('ServiceWorker registration successful with scope: ', registration.scope);
@@ -1994,4 +2006,4 @@ if ('serviceWorker' in navigator) {
             console.log('ServiceWorker registration failed: ', err);
         });
     });
-}
+})();
