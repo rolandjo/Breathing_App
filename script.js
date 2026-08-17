@@ -5,8 +5,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const UiUtils = window.BreathingUiUtils;
     const TranslationManager = window.BreathingTranslationManager;
     const Voice = window.BreathingVoice;
+    const Theme = window.BreathingTheme;
+    const Visualizer = window.BreathingVisualizer;
+    const ProtocolEditor = window.BreathingProtocolEditor;
+    const ExerciseChooser = window.BreathingExerciseChooser;
     const App = window.BreathingApp;
-    if (!Model || !Storage || !UiUtils || !TranslationManager || !Voice || !App) {
+    if (!Model || !Storage || !UiUtils || !TranslationManager || !Voice || !Theme || !Visualizer || !ProtocolEditor || !ExerciseChooser || !App) {
         console.error('A required breathing app module failed to load.');
         return;
     }
@@ -69,10 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let stepStartTime = 0;
     let lastTime = 0;
     let lastProgress = 0;
-    let cachedColors = {};
     let suppressPhaseAudio = false;
     let visualizerResizeObserver = null;
-    const collapsedBlockIds = new Set();
 
     let cachedVisualPhases = null;
     let cachedVisualPhasesBlock = null;
@@ -81,172 +83,53 @@ document.addEventListener('DOMContentLoaded', () => {
     const translations = TranslationManager.translations;
     const presetDescriptions = TranslationManager.presetDescriptions;
 
-    function clamp(value, min, max) {
-        return Math.min(max, Math.max(min, value));
-    }
+    const visualizer = Visualizer.createVisualizer({
+        canvas: elements.canvas,
+        ctx,
+        getWrapper: () => elements.visualizerWrapper,
+        getIsRunning: () => isRunning,
+        getSession: () => session,
+        visualPhaseList,
+        currentStep
+    });
 
-    function normalizeHex(color) {
-        if (typeof color !== 'string') return '';
-        const value = color.trim().toLowerCase();
-        if (/^#[0-9a-f]{6}$/.test(value)) return value;
-        if (/^#[0-9a-f]{3}$/.test(value)) {
-            return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`;
-        }
-        return '';
-    }
+    const protocolEditor = ProtocolEditor.createProtocolEditor({
+        Model,
+        elements,
+        getWorkingProtocol: () => workingProtocol,
+        getSelectedProtocolId: () => selectedProtocolId,
+        getTranslations: () => translations[currentLanguage] || {},
+        protocolDisplayName,
+        formatBlockSummary,
+        markAsCustomIfBuiltin,
+        afterProtocolEdit
+    });
 
-    function onColorFor(hex) {
-        const value = hex.replace('#', '');
-        const channel = offset => {
-            const number = parseInt(value.slice(offset, offset + 2), 16) / 255;
-            return number <= 0.03928 ? number / 12.92 : ((number + 0.055) / 1.055) ** 2.4;
-        };
-        const luminance = 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
-        return luminance > 0.45 ? '#1a1a1a' : '#ffffff';
-    }
+    const exerciseChooser = ExerciseChooser.createExerciseChooser({
+        Model,
+        UiUtils,
+        elements,
+        getSelectedProtocolId: () => selectedProtocolId,
+        setSelectedProtocolId: (id) => { selectedProtocolId = id; },
+        getTranslations: () => translations[currentLanguage] || {},
+        homeExerciseName,
+        loadProtocol
+    });
 
-    function hexToHsl(hex) {
-        const value = hex.replace('#', '');
-        const red = parseInt(value.slice(0, 2), 16) / 255;
-        const green = parseInt(value.slice(2, 4), 16) / 255;
-        const blue = parseInt(value.slice(4, 6), 16) / 255;
-        const max = Math.max(red, green, blue);
-        const min = Math.min(red, green, blue);
-        const delta = max - min;
-        let hue = 0;
-
-        if (delta !== 0) {
-            if (max === red) hue = 60 * (((green - blue) / delta) % 6);
-            else if (max === green) hue = 60 * ((blue - red) / delta + 2);
-            else hue = 60 * ((red - green) / delta + 4);
-        }
-
-        if (hue < 0) hue += 360;
-        const lightness = (max + min) / 2;
-        const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
-        return { h: hue, s: saturation * 100 };
-    }
-
-    function hslToHex(hue, saturation, lightness) {
-        const h = ((hue % 360) + 360) % 360;
-        const s = clamp(saturation, 0, 100) / 100;
-        const l = clamp(lightness, 0, 100) / 100;
-        const chroma = (1 - Math.abs(2 * l - 1)) * s;
-        const x = chroma * (1 - Math.abs((h / 60) % 2 - 1));
-        const offset = l - chroma / 2;
-        let red = 0;
-        let green = 0;
-        let blue = 0;
-
-        if (h < 60) [red, green] = [chroma, x];
-        else if (h < 120) [red, green] = [x, chroma];
-        else if (h < 180) [green, blue] = [chroma, x];
-        else if (h < 240) [green, blue] = [x, chroma];
-        else if (h < 300) [red, blue] = [x, chroma];
-        else [red, blue] = [chroma, x];
-
-        return `#${[red, green, blue].map(channel =>
-            Math.round((channel + offset) * 255).toString(16).padStart(2, '0')
-        ).join('')}`;
-    }
-
-    function createMaterialPalette(seedColor, darkMode) {
-        const { h, s } = hexToHsl(seedColor);
-        const isNeutral = s < 5;
-        const primarySaturation = isNeutral ? 0 : clamp(s, 42, 78);
-        const secondarySaturation = isNeutral ? 0 : clamp(s * 0.38, 18, 34);
-        const tertiaryHue = (h + 62) % 360;
-        const tertiarySaturation = isNeutral ? 0 : clamp(s * 0.62, 32, 58);
-        const neutralSaturation = isNeutral ? 0 : clamp(s * 0.1, 3, 8);
-        const variantSaturation = isNeutral ? 0 : clamp(s * 0.18, 6, 14);
-
-        if (darkMode) {
-            return {
-                primary: hslToHex(h, primarySaturation, 80),
-                onPrimary: hslToHex(h, primarySaturation, 20),
-                primaryContainer: hslToHex(h, primarySaturation, 30),
-                onPrimaryContainer: hslToHex(h, primarySaturation, 90),
-                secondary: hslToHex(h, secondarySaturation, 80),
-                onSecondary: hslToHex(h, secondarySaturation, 20),
-                secondaryContainer: hslToHex(h, secondarySaturation, 30),
-                onSecondaryContainer: hslToHex(h, secondarySaturation, 90),
-                tertiary: hslToHex(tertiaryHue, tertiarySaturation, 80),
-                tertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 30),
-                onTertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 90),
-                surface: hslToHex(h, neutralSaturation, 6),
-                surfaceLow: hslToHex(h, neutralSaturation, 10),
-                surfaceContainer: hslToHex(h, neutralSaturation, 12),
-                surfaceHigh: hslToHex(h, neutralSaturation, 17),
-                surfaceHighest: hslToHex(h, variantSaturation, 22),
-                onSurface: hslToHex(h, neutralSaturation, 90),
-                onSurfaceVariant: hslToHex(h, variantSaturation, 80),
-                outline: hslToHex(h, variantSaturation, 60),
-                outlineVariant: hslToHex(h, variantSaturation, 30),
-                exhale: hslToHex(h - 58, isNeutral ? 0 : clamp(s, 38, 65), 80)
-            };
-        }
-
-        return {
-            primary: hslToHex(h, primarySaturation, 32),
-            onPrimary: '#ffffff',
-            primaryContainer: hslToHex(h, primarySaturation, 90),
-            onPrimaryContainer: hslToHex(h, primarySaturation, 10),
-            secondary: hslToHex(h, secondarySaturation, 38),
-            onSecondary: '#ffffff',
-            secondaryContainer: hslToHex(h, secondarySaturation, 90),
-            onSecondaryContainer: hslToHex(h, secondarySaturation, 10),
-            tertiary: hslToHex(tertiaryHue, tertiarySaturation, 38),
-            tertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 90),
-            onTertiaryContainer: hslToHex(tertiaryHue, tertiarySaturation, 10),
-            surface: hslToHex(h, neutralSaturation, 98),
-            surfaceLow: hslToHex(h, neutralSaturation, 96),
-            surfaceContainer: hslToHex(h, neutralSaturation, 94),
-            surfaceHigh: hslToHex(h, neutralSaturation, 92),
-            surfaceHighest: hslToHex(h, variantSaturation, 90),
-            onSurface: hslToHex(h, neutralSaturation, 10),
-            onSurfaceVariant: hslToHex(h, variantSaturation, 30),
-            outline: hslToHex(h, variantSaturation, 48),
-            outlineVariant: hslToHex(h, variantSaturation, 80),
-            exhale: hslToHex(h - 58, isNeutral ? 0 : clamp(s, 38, 65), 38)
-        };
-    }
-
+    /**
+     * Applies the accent seed through BreathingTheme, then updates swatches,
+     * theme-color, and the idle orb. Palette math stays in theme.js so it can
+     * be unit-tested without this DOM glue.
+     *
+     * @param {string} color - 3- or 6-digit hex seed
+     */
     function applyPrimaryColor(color) {
-        const nextColor = normalizeHex(color);
-        if (!nextColor) return;
-        primaryColor = nextColor;
-        const palette = createMaterialPalette(primaryColor, document.body.classList.contains('dark-mode'));
-        palette.primary = primaryColor;
-        palette.onPrimary = onColorFor(primaryColor);
-        const rootStyle = document.body.style;
-        const roles = {
-            '--md-sys-color-primary': palette.primary,
-            '--md-sys-color-on-primary': palette.onPrimary,
-            '--md-sys-color-primary-container': palette.primaryContainer,
-            '--md-sys-color-on-primary-container': palette.onPrimaryContainer,
-            '--md-sys-color-secondary': palette.secondary,
-            '--md-sys-color-on-secondary': palette.onSecondary,
-            '--md-sys-color-secondary-container': palette.secondaryContainer,
-            '--md-sys-color-on-secondary-container': palette.onSecondaryContainer,
-            '--md-sys-color-tertiary': palette.tertiary,
-            '--md-sys-color-tertiary-container': palette.tertiaryContainer,
-            '--md-sys-color-on-tertiary-container': palette.onTertiaryContainer,
-            '--md-sys-color-surface': palette.surface,
-            '--md-sys-color-surface-container-low': palette.surfaceLow,
-            '--md-sys-color-surface-container': palette.surfaceContainer,
-            '--md-sys-color-surface-container-high': palette.surfaceHigh,
-            '--md-sys-color-surface-container-highest': palette.surfaceHighest,
-            '--md-sys-color-on-surface': palette.onSurface,
-            '--md-sys-color-on-surface-variant': palette.onSurfaceVariant,
-            '--md-sys-color-outline': palette.outline,
-            '--md-sys-color-outline-variant': palette.outlineVariant,
-            '--orb-color-inhale': palette.primary,
-            '--orb-color-hold': palette.tertiary,
-            '--orb-color-exhale': palette.exhale,
-            '--orb-color-idle': palette.secondary
-        };
-
-        Object.entries(roles).forEach(([role, value]) => rootStyle.setProperty(role, value));
+        const result = Theme.applyPrimaryColor(color, {
+            darkMode: document.body.classList.contains('dark-mode'),
+            styleTarget: document.body.style
+        });
+        if (!result) return;
+        primaryColor = result.color;
         if (elements.primaryColorInput) {
             elements.primaryColorInput.value = customAccentColor;
         }
@@ -261,9 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
             customButton.classList.toggle('is-selected', !matchesSwatch);
             customButton.setAttribute('aria-pressed', String(!matchesSwatch));
         }
-        document.querySelector('meta[name="theme-color"]').content = palette.surface;
-        updateCachedColors();
-        if (!isRunning) drawFrame(null, 0, performance.now());
+        const themeMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeMeta) themeMeta.content = result.palette.surface;
+        visualizer.updateCachedColors();
+        if (!isRunning) visualizer.drawFrame(null, 0, performance.now());
     }
 
     // Spoken phase cues
@@ -335,162 +219,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(() => {});
     }
 
-    // --- CANVAS VISUALIZER LOGIC ---
-
-    function resizeCanvas() {
-        const wrapper = elements.visualizerWrapper;
-        const dpr = window.devicePixelRatio || 1;
-        elements.canvas.width = wrapper.clientWidth * dpr;
-        elements.canvas.height = wrapper.clientHeight * dpr;
-        ctx.scale(dpr, dpr);
-        updateCachedColors();
-    }
-
-    function updateCachedColors() {
-        const root = document.body;
-        cachedColors = {
-            inhale: getComputedStyle(root).getPropertyValue('--orb-color-inhale').trim(),
-            hold: getComputedStyle(root).getPropertyValue('--orb-color-hold').trim(),
-            exhale: getComputedStyle(root).getPropertyValue('--orb-color-exhale').trim(),
-            idle: getComputedStyle(root).getPropertyValue('--orb-color-idle').trim(),
-            glassBorder: getComputedStyle(root).getPropertyValue('--md-sys-color-outline-variant').trim(),
-        };
-    }
-
-    function generateVertices(activeStepsCount, cx, cy, r) {
-        if (activeStepsCount <= 1) return [{ x: cx, y: cy }];
-        if (activeStepsCount === 2) {
-            return [
-                { x: cx, y: cy + r },
-                { x: cx, y: cy - r }
-            ];
-        }
-        if (activeStepsCount === 3) {
-            return [
-                { x: cx - r * 0.866, y: cy + r * 0.5 },
-                { x: cx, y: cy - r },
-                { x: cx + r * 0.866, y: cy + r * 0.5 }
-            ];
-        }
-        if (activeStepsCount === 4) {
-            return [
-                { x: cx - r, y: cy + r },
-                { x: cx - r, y: cy - r },
-                { x: cx + r, y: cy - r },
-                { x: cx + r, y: cy + r }
-            ];
-        }
-
-        const vertices = [];
-        for (let i = 0; i < activeStepsCount; i++) {
-            const angle = -Math.PI / 2 + (i * 2 * Math.PI) / activeStepsCount;
-            vertices.push({
-                x: cx + r * Math.cos(angle),
-                y: cy + r * Math.sin(angle)
-            });
-        }
-        return vertices;
-    }
-
-    function easeInOutSine(x) {
-        return -(Math.cos(Math.PI * x) - 1) / 2;
-    }
-
-    function drawFrame(step, progress, idleTime = 0) {
-        const w = elements.canvas.clientWidth;
-        const h = elements.canvas.clientHeight;
-        const cx = w / 2;
-        const cy = h / 2;
-        const r = Math.min(w, h) * 0.35;
-
-        ctx.clearRect(0, 0, w, h);
-
-        const activeSteps = visualPhaseList();
-        if (activeSteps.length === 0 && isRunning) {
-            const step = currentStep();
-            if (step) {
-                ctx.beginPath();
-                ctx.arc(cx, cy, 18, 0, Math.PI * 2);
-                ctx.fillStyle = cachedColors[step.colorKey] || cachedColors.idle;
-                ctx.shadowColor = ctx.fillStyle;
-                ctx.shadowBlur = 15;
-                ctx.fill();
-                ctx.shadowBlur = 0;
-            }
-            return;
-        }
-
-        if (activeSteps.length === 0) return;
-
-        const vertices = generateVertices(activeSteps.length, cx, cy, r);
-
-        // Draw track
-        if (vertices.length > 1) {
-            ctx.beginPath();
-            ctx.moveTo(vertices[0].x, vertices[0].y);
-            for (let i = 1; i < vertices.length; i++) {
-                ctx.lineTo(vertices[i].x, vertices[i].y);
-            }
-            if (vertices.length > 2) ctx.closePath();
-            
-            ctx.strokeStyle = cachedColors.glassBorder || 'rgba(255, 255, 255, 0.2)';
-            ctx.lineWidth = 4;
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-        }
-
-        let bx = cx;
-        let by = cy;
-        let currentColor = cachedColors.idle;
-
-        if (!isRunning) {
-            const accent = cachedColors.inhale || cachedColors.idle;
-            const pulse = 1 + Math.sin(idleTime / 500) * 0.1;
-            ctx.beginPath();
-            ctx.arc(cx, cy, 20 * pulse, 0, Math.PI * 2);
-            ctx.fillStyle = accent;
-            ctx.shadowColor = accent;
-            ctx.shadowBlur = 15;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            return;
-        }
-
-        const activeStep = step || currentStep();
-        const activeIndex = (() => {
-            if (!isRunning || !session || !activeStep) return -1;
-            const block = session.currentBlock();
-            if (!block || block.type !== 'pattern') return -1;
-            const phase = block.phases[session.cursor.phaseIndex];
-            return phase ? activeSteps.findIndex(item => item.id === phase.id) : -1;
-        })();
-        if (activeIndex !== -1 && vertices.length > 1) {
-            const start = vertices[activeIndex];
-            const end = vertices[(activeIndex + 1) % vertices.length];
-
-            const easedProgress = easeInOutSine(progress);
-            bx = start.x + (end.x - start.x) * easedProgress;
-            by = start.y + (end.y - start.y) * easedProgress;
-            currentColor = cachedColors[activeStep.colorKey];
-        } else if (activeStep) {
-             currentColor = cachedColors[activeStep.colorKey] || cachedColors.idle;
-        }
-
-        // Draw only the progress marker; the geometric track remains the focal point.
-        ctx.beginPath();
-        ctx.arc(bx, by, 15, 0, Math.PI * 2);
-        ctx.fillStyle = currentColor;
-        ctx.shadowColor = currentColor;
-        ctx.shadowBlur = 15;
-        ctx.fill();
-        ctx.shadowBlur = 0; 
-    }
-
     function renderLoop(time) {
         if (!lastTime) lastTime = time;
 
         if (!isRunning) {
-            drawFrame(null, 0, time);
+            visualizer.drawFrame(null, 0, time);
             animationFrameId = requestAnimationFrame(renderLoop);
             lastTime = time;
             return;
@@ -499,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isPaused) {
             stepStartTime += (time - lastTime); 
             lastTime = time;
-            drawFrame(currentStep(), lastProgress); 
+            visualizer.drawFrame(currentStep(), lastProgress); 
             animationFrameId = requestAnimationFrame(renderLoop);
             return;
         }
@@ -555,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (elements.phaseTime.textContent !== String(remaining)) {
                 elements.phaseTime.textContent = remaining;
             }
-            drawFrame(currentStep(), 0, time);
+            visualizer.drawFrame(currentStep(), 0, time);
             return;
         }
 
@@ -607,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (progress >= 1) {
             progress = 1;
-            drawFrame(step, progress);
+            visualizer.drawFrame(step, progress);
             const completedAt = stepStartTime + duration * 1000;
             const result = session.advance();
             if (result.done) {
@@ -624,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateRemainingCycles();
             updateTotalTime();
         } else {
-            drawFrame(step, progress);
+            visualizer.drawFrame(step, progress);
             lastProgress = progress;
         }
     }
@@ -660,8 +393,8 @@ document.addEventListener('DOMContentLoaded', () => {
         lastProgress = 0;
         isRunning = true;
         document.body.classList.add('session-active');
-        resizeCanvas();
-        updateCachedColors();
+        visualizer.resizeCanvas();
+        visualizer.updateCachedColors();
         elements.visualizerWrapper.classList.remove('session-complete', 'is-paused');
 
         elements.startButton.classList.add('d-none');
@@ -721,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.phaseTime.textContent = '';
         updateRemainingCycles();
         updateTimeDisplay(0, true);
-        drawFrame(null, 0, performance.now());
+        visualizer.drawFrame(null, 0, performance.now());
     }
 
     function pause() {
@@ -796,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetDisplay() {
         setGuidedPrompt(translations[currentLanguage]?.ready || 'Ready to breathe');
         elements.phaseTime.textContent = '';
-        drawFrame(null, 0, performance.now());
+        visualizer.drawFrame(null, 0, performance.now());
     }
 
     function updateTimeDisplay(totalSeconds, forceRemaining = false) {
@@ -926,736 +659,6 @@ document.addEventListener('DOMContentLoaded', () => {
         syncSelectedPresetInfo();
     }
 
-    function refreshPresetSelect() {
-        const t = translations[currentLanguage] || {};
-        const library = Model.loadUserLibrary();
-        const currentValue = selectedProtocolId;
-        elements.presetSelect.replaceChildren();
-
-        const builtinGroup = document.createElement('optgroup');
-        builtinGroup.label = t.builtinsGroup || 'Built-in';
-        Model.PRESET_IDS.forEach(id => {
-            const option = document.createElement('option');
-            option.value = id;
-            option.textContent = t[id] || Model.builtins[id].name;
-            builtinGroup.appendChild(option);
-        });
-        elements.presetSelect.appendChild(builtinGroup);
-
-        if (library.length) {
-            const userGroup = document.createElement('optgroup');
-            userGroup.label = t.myExercises || 'My exercises';
-            library.forEach(protocol => {
-                const option = document.createElement('option');
-                option.value = protocol.id;
-                option.textContent = protocol.name;
-                userGroup.appendChild(option);
-            });
-            elements.presetSelect.appendChild(userGroup);
-        }
-
-        if ([...elements.presetSelect.options].some(option => option.value === currentValue)) {
-            elements.presetSelect.value = currentValue;
-        } else {
-            elements.presetSelect.value = 'custom';
-            selectedProtocolId = 'custom';
-        }
-        refreshExerciseChooser();
-    }
-
-    function exerciseChooserItems() {
-        const items = Model.PRESET_IDS.map(id => ({
-            id,
-            group: 'builtin',
-            name: homeExerciseName(Model.getBuiltin(id))
-        }));
-        Model.loadUserLibrary().forEach(protocol => {
-            items.push({
-                id: protocol.id,
-                group: 'user',
-                name: protocol.name
-            });
-        });
-        return items;
-    }
-
-    const PRESET_GUIDE_KEYS = {
-        box: { title: 'boxTitle', body: 'boxDescription' },
-        relaxing: { title: 'relaxingTitle', body: 'relaxingDescription' },
-        equal: { title: 'equalTitle', body: 'equalDescription' },
-        power_rounds: { title: 'powerRoundsTitle', body: 'powerRoundsDescription' }
-    };
-
-    function syncSelectedPresetInfo() {
-        const button = elements.selectedPresetInfo;
-        if (!button) return;
-        const hasGuide = Boolean(PRESET_GUIDE_KEYS[selectedProtocolId]);
-        button.classList.toggle('d-none', !hasGuide);
-        button.disabled = !hasGuide;
-    }
-
-    /**
-     * Opens the guide dialog. A builtin id shows only that pattern’s title and
-     * copy. Omitting an id (Protocols Guide) shows the full catalog.
-     *
-     * @param {string} [id]
-     */
-    function openPresetGuide(id) {
-        const modalEl = document.getElementById('infoModal');
-        if (!modalEl || !window.bootstrap?.Modal) return;
-        const presetId = PRESET_GUIDE_KEYS[id] ? id : '';
-        modalEl.dataset.guidePresetId = presetId;
-        modalEl.classList.toggle('is-single-guide', Boolean(presetId));
-        applyGuideView(modalEl);
-        window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
-    }
-
-    function applyGuideView(modalEl) {
-        const id = modalEl.dataset.guidePresetId;
-        const keys = PRESET_GUIDE_KEYS[id];
-        const t = translations[currentLanguage] || {};
-        const accordion = modalEl.querySelector('#breathingPatterns');
-        const safety = modalEl.querySelector('.guide-safety-note');
-        const catalogTitle = modalEl.querySelector('#infoModalLabel');
-        const singleTitle = modalEl.querySelector('#guide-single-title');
-        const singleWrap = modalEl.querySelector('#guide-single');
-        const singleBody = modalEl.querySelector('#guide-single-body');
-        const showSingle = Boolean(keys);
-
-        accordion?.classList.toggle('d-none', showSingle);
-        safety?.classList.toggle('d-none', showSingle);
-        catalogTitle?.classList.toggle('d-none', showSingle);
-        singleTitle?.classList.toggle('d-none', !showSingle);
-        singleWrap?.classList.toggle('d-none', !showSingle);
-
-        if (showSingle) {
-            if (singleTitle) singleTitle.textContent = t[keys.title] || '';
-            if (singleBody) singleBody.textContent = t[keys.body] || '';
-            modalEl.setAttribute('aria-labelledby', 'guide-single-title');
-            return;
-        }
-
-        modalEl.setAttribute('aria-labelledby', 'infoModalLabel');
-        if (catalogTitle && t.guideTitle) catalogTitle.textContent = t.guideTitle;
-        modalEl.querySelectorAll('#breathingPatterns .accordion-collapse').forEach((panel) => {
-            const collapse = window.bootstrap?.Collapse.getOrCreateInstance(panel, { toggle: false });
-            if (!collapse) return;
-            if (panel.id === 'boxBreathing') collapse.show();
-            else collapse.hide();
-        });
-    }
-
-    function setExerciseChooserOpen(open) {
-        if (!elements.exerciseChooserButton || !elements.exerciseChooserMenu) return;
-        const chooser = elements.exerciseChooserButton.closest('.practice-chooser');
-        elements.exerciseChooserButton.setAttribute('aria-expanded', open ? 'true' : 'false');
-        chooser?.classList.toggle('is-open', open);
-    }
-
-    function exerciseChooserOptions() {
-        return [...elements.exerciseChooserMenu.querySelectorAll('.exercise-menu-item')];
-    }
-
-    function focusExerciseOption(index) {
-        const options = exerciseChooserOptions();
-        if (!options.length) return;
-        const target = options[Math.max(0, Math.min(index, options.length - 1))];
-        options.forEach(option => { option.tabIndex = option === target ? 0 : -1; });
-        target.focus();
-    }
-
-    function closeExerciseChooser(restoreFocus = false) {
-        setExerciseChooserOpen(false);
-        if (restoreFocus) elements.exerciseChooserButton.focus();
-    }
-
-    function moveExerciseChooserFocus(event) {
-        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return false;
-        event.preventDefault();
-        const options = exerciseChooserOptions();
-        const currentIndex = options.indexOf(document.activeElement);
-        focusExerciseOption(UiUtils.chooserIndex(currentIndex, options.length, event.key));
-        return true;
-    }
-
-    function refreshExerciseChooser() {
-        const t = translations[currentLanguage] || {};
-        const menu = elements.exerciseChooserMenu;
-        if (!menu) return;
-        const items = exerciseChooserItems();
-        menu.replaceChildren();
-        const groups = [
-            { id: 'builtin', label: t.builtinsGroup || 'Built-in' },
-            { id: 'user', label: t.myExercises || 'My exercises' }
-        ];
-        groups.forEach(group => {
-            const matches = items.filter(item => item.group === group.id);
-            if (!matches.length) return;
-            const heading = document.createElement('li');
-            heading.className = 'exercise-menu-group';
-            heading.setAttribute('role', 'presentation');
-            heading.textContent = group.label;
-            menu.appendChild(heading);
-            matches.forEach(item => {
-                const row = document.createElement('li');
-                row.setAttribute('role', 'presentation');
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'exercise-menu-item';
-                button.setAttribute('role', 'option');
-                button.dataset.protocolId = item.id;
-                button.textContent = item.name;
-                const selected = item.id === selectedProtocolId;
-                button.classList.toggle('is-selected', selected);
-                button.setAttribute('aria-selected', selected ? 'true' : 'false');
-                button.tabIndex = selected ? 0 : -1;
-                button.addEventListener('click', () => {
-                    closeExerciseChooser(true);
-                    if (item.id !== selectedProtocolId) loadProtocol(item.id);
-                });
-                button.addEventListener('keydown', event => {
-                    if (moveExerciseChooserFocus(event)) return;
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        button.click();
-                    } else if (event.key === 'Escape') {
-                        event.preventDefault();
-                        closeExerciseChooser(true);
-                    } else if (event.key === 'Tab') {
-                        setExerciseChooserOpen(false);
-                    }
-                });
-                row.appendChild(button);
-                menu.appendChild(row);
-            });
-        });
-    }
-
-    function phaseTypeLabel(type) {
-        const t = translations[currentLanguage] || {};
-        return t[`${type}Type`] || type;
-    }
-
-    function iconButton(icon, label, disabled = false) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'btn btn-icon';
-        const iconEl = document.createElement('i');
-        iconEl.className = icon;
-        iconEl.setAttribute('aria-hidden', 'true');
-        button.appendChild(iconEl);
-        button.setAttribute('aria-label', label);
-        button.title = label;
-        button.disabled = disabled;
-        return button;
-    }
-
-    function labeledActionButton(icon, text, aria, disabled = false) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'btn block-action-btn';
-        const iconEl = document.createElement('i');
-        iconEl.className = icon;
-        iconEl.setAttribute('aria-hidden', 'true');
-        const textEl = document.createElement('span');
-        textEl.textContent = text;
-        button.append(iconEl, textEl);
-        button.setAttribute('aria-label', aria || text);
-        button.title = aria || text;
-        button.disabled = disabled;
-        return button;
-    }
-
-    function stepTitle(index, label, t) {
-        const title = document.createElement('div');
-        title.className = 'block-card-title';
-        const step = document.createElement('button');
-        step.type = 'button';
-        step.className = 'block-step-index';
-        step.textContent = (t.stepLabel || 'Step {n}').replace('{n}', String(index + 1));
-        const name = document.createElement('span');
-        name.className = 'block-step-name';
-        name.textContent = label;
-        title.append(step, name);
-        return title;
-    }
-
-    function collapsedSummaryFor(block, t) {
-        if (block.type === 'retention') {
-            return formatBlockSummary({
-                kind: 'retention',
-                duration: block.duration,
-                increasePerRound: block.increasePerRound
-            });
-        }
-        if (block.type === 'ref') {
-            const nested = Model.resolveRef(block);
-            const name = nested ? protocolDisplayName(nested) : block.protocolId;
-            const nestedSummary = nested ? Model.summaryParts(nested) : null;
-            const include = (t.includesExercise || 'Includes {name}').replace('{name}', name);
-            if (nestedSummary?.kind === 'pattern') {
-                return `${include} · ${nestedSummary.phases.join(' · ')} × ${nestedSummary.cycles}`;
-            }
-            return include;
-        }
-        const phases = Model.activePhases(block.phases).map(phase => phase.duration);
-        return `${phases.join(' · ')} × ${block.cycles}`;
-    }
-
-    function applyCollapsedState(card, block, t) {
-        const collapsed = collapsedBlockIds.has(block.id);
-        card.classList.toggle('is-collapsed', collapsed);
-        const toggle = card.querySelector('.block-step-index');
-        if (toggle) {
-            toggle.setAttribute('aria-expanded', String(!collapsed));
-            toggle.setAttribute('aria-label', collapsed
-                ? (t.expandStep || 'Expand step')
-                : (t.collapseStep || 'Collapse step'));
-        }
-    }
-
-    function wireCardCollapse(card, block, t, body) {
-        body.classList.add('block-card-body');
-        const summary = document.createElement('p');
-        summary.className = 'block-collapsed-summary';
-        summary.textContent = collapsedSummaryFor(block, t);
-        const toggle = card.querySelector('.block-step-index');
-        if (toggle) {
-            const onToggle = (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (collapsedBlockIds.has(block.id)) collapsedBlockIds.delete(block.id);
-                else collapsedBlockIds.add(block.id);
-                applyCollapsedState(card, block, t);
-            };
-            toggle.addEventListener('click', onToggle);
-        }
-        card.append(summary, body);
-        applyCollapsedState(card, block, t);
-    }
-
-    function renderLinkedPreview(nested, t) {
-        const preview = document.createElement('div');
-        preview.className = 'linked-preview';
-        const caption = document.createElement('div');
-        caption.className = 'linked-preview-label';
-        caption.textContent = nested
-            ? (t.insideExercise || 'Inside {name}').replace('{name}', protocolDisplayName(nested))
-            : (t.previewReadOnly || 'Preview');
-        preview.appendChild(caption);
-
-        if (!nested) return preview;
-
-        const summary = Model.summaryParts(nested);
-        if (summary.kind === 'pattern') {
-            const chips = document.createElement('div');
-            chips.className = 'linked-preview-chips';
-            const pattern = nested.blocks.find(item => item.type === 'pattern');
-            (pattern?.phases || []).forEach(phase => {
-                const chip = document.createElement('span');
-                chip.className = `linked-chip phase-${phase.type}`;
-                chip.textContent = `${phaseTypeLabel(phase.type)} ${phase.duration}s`;
-                chips.appendChild(chip);
-            });
-            const cycles = document.createElement('span');
-            cycles.className = 'linked-chip is-cycles';
-            cycles.textContent = `× ${summary.cycles}`;
-            chips.appendChild(cycles);
-            preview.appendChild(chips);
-            return preview;
-        }
-
-        const list = document.createElement('ul');
-        list.className = 'linked-preview-list';
-        (summary.blocks || []).forEach(item => {
-            const row = document.createElement('li');
-            row.textContent = formatBlockSummary(item);
-            list.appendChild(row);
-        });
-        preview.appendChild(list);
-        return preview;
-    }
-
-    function renderPhaseRows(block, list) {
-        const t = translations[currentLanguage] || {};
-        block.phases.forEach((phase, index) => {
-            const row = document.createElement('div');
-            row.className = `phase-row phase-${phase.type}`;
-
-            const typeSelect = document.createElement('select');
-            typeSelect.className = 'form-select shadow-sm custom-select';
-            typeSelect.setAttribute('aria-label', t.phaseType || 'Phase type');
-            Model.PHASE_TYPES.forEach(type => {
-                const option = document.createElement('option');
-                option.value = type;
-                option.textContent = phaseTypeLabel(type);
-                if (type === phase.type) option.selected = true;
-                typeSelect.appendChild(option);
-            });
-            typeSelect.addEventListener('change', () => {
-                markAsCustomIfBuiltin();
-                Model.updatePhase(workingProtocol, block.id, phase.id, { type: typeSelect.value });
-                afterProtocolEdit();
-            });
-
-            const durationInput = document.createElement('input');
-            durationInput.type = 'number';
-            durationInput.className = 'form-control shadow-sm custom-input';
-            durationInput.min = '1';
-            durationInput.max = '180';
-            durationInput.value = phase.duration;
-            durationInput.setAttribute('aria-label', `${phaseTypeLabel(phase.type)} (s)`);
-            durationInput.addEventListener('input', () => {
-                markAsCustomIfBuiltin();
-                Model.updatePhase(workingProtocol, block.id, phase.id, { duration: durationInput.value });
-                afterProtocolEdit(false);
-            });
-            durationInput.addEventListener('change', () => {
-                const value = Number(durationInput.value);
-                durationInput.value = Number.isFinite(value) ? Math.min(180, Math.max(1, value)) : 4;
-                markAsCustomIfBuiltin();
-                Model.updatePhase(workingProtocol, block.id, phase.id, { duration: durationInput.value });
-                afterProtocolEdit();
-            });
-
-            const actions = document.createElement('div');
-            actions.className = 'phase-row-actions';
-            const upButton = iconButton('fa-solid fa-arrow-up', t.movePhaseUp || 'Move phase up', index === 0);
-            upButton.addEventListener('click', () => {
-                markAsCustomIfBuiltin();
-                Model.movePhase(workingProtocol, block.id, phase.id, -1);
-                afterProtocolEdit();
-            });
-            const downButton = iconButton('fa-solid fa-arrow-down', t.movePhaseDown || 'Move phase down', index === block.phases.length - 1);
-            downButton.addEventListener('click', () => {
-                markAsCustomIfBuiltin();
-                Model.movePhase(workingProtocol, block.id, phase.id, 1);
-                afterProtocolEdit();
-            });
-            const removeButton = iconButton('fa-solid fa-minus', t.removePhase || 'Remove phase', block.phases.length <= 1);
-            removeButton.addEventListener('click', () => {
-                markAsCustomIfBuiltin();
-                Model.removePhase(workingProtocol, block.id, phase.id);
-                afterProtocolEdit();
-            });
-            actions.append(upButton, downButton, removeButton);
-            row.append(typeSelect, durationInput, actions);
-            list.appendChild(row);
-        });
-    }
-
-    function renderBlockActions(block, index, t) {
-        const actions = document.createElement('div');
-        actions.className = 'block-card-actions';
-        const upButton = labeledActionButton(
-            'fa-solid fa-arrow-up',
-            t.moveUp || 'Up',
-            t.moveUp || 'Move step up',
-            index === 0
-        );
-        upButton.addEventListener('click', () => {
-            markAsCustomIfBuiltin();
-            Model.moveBlock(workingProtocol, block.id, -1);
-            afterProtocolEdit();
-        });
-        const downButton = labeledActionButton(
-            'fa-solid fa-arrow-down',
-            t.moveDown || 'Down',
-            t.moveDown || 'Move step down',
-            index === workingProtocol.blocks.length - 1
-        );
-        downButton.addEventListener('click', () => {
-            markAsCustomIfBuiltin();
-            Model.moveBlock(workingProtocol, block.id, 1);
-            afterProtocolEdit();
-        });
-        const removeButton = labeledActionButton(
-            'fa-solid fa-trash',
-            t.removeStep || 'Remove',
-            t.removeStep || 'Remove step',
-            workingProtocol.blocks.length <= 1
-        );
-        removeButton.addEventListener('click', () => {
-            markAsCustomIfBuiltin();
-            Model.removeBlock(workingProtocol, block.id);
-            afterProtocolEdit();
-        });
-        actions.append(upButton, downButton, removeButton);
-        return actions;
-    }
-
-    function renderPatternCard(block, index, t) {
-        const card = document.createElement('div');
-        card.className = 'block-card is-pattern';
-        const header = document.createElement('div');
-        header.className = 'block-card-header';
-        const title = stepTitle(index, t.patternBlock || 'Pattern', t);
-        header.append(title, renderBlockActions(block, index, t));
-        card.appendChild(header);
-
-        const body = document.createElement('div');
-        const cyclesGroup = document.createElement('div');
-        cyclesGroup.className = 'form-group mb-3';
-        const cyclesLabel = document.createElement('label');
-        cyclesLabel.className = 'form-label small';
-        cyclesLabel.textContent = t.cycles || 'Cycles';
-        const cyclesInput = document.createElement('input');
-        cyclesInput.type = 'number';
-        cyclesInput.className = 'form-control shadow-sm custom-input';
-        cyclesInput.min = '1';
-        cyclesInput.max = '100';
-        cyclesInput.value = block.cycles;
-        cyclesInput.setAttribute('aria-label', t.cycles || 'Cycles');
-        cyclesInput.addEventListener('input', () => {
-            markAsCustomIfBuiltin();
-            Model.setPatternCycles(workingProtocol, block.id, cyclesInput.value);
-            afterProtocolEdit(false);
-        });
-        cyclesInput.addEventListener('change', () => {
-            const value = Number(cyclesInput.value);
-            cyclesInput.value = Number.isFinite(value) ? Math.min(100, Math.max(1, value)) : 1;
-            markAsCustomIfBuiltin();
-            Model.setPatternCycles(workingProtocol, block.id, cyclesInput.value);
-            afterProtocolEdit();
-        });
-        cyclesGroup.append(cyclesLabel, cyclesInput);
-        body.appendChild(cyclesGroup);
-
-        const list = document.createElement('div');
-        list.className = 'phase-list';
-        renderPhaseRows(block, list);
-        body.appendChild(list);
-
-        const addPhase = document.createElement('button');
-        addPhase.type = 'button';
-        addPhase.className = 'btn guide-button w-100';
-        const iconEl = document.createElement('i');
-        iconEl.className = 'fa-solid fa-plus';
-        iconEl.setAttribute('aria-hidden', 'true');
-        const textEl = document.createElement('span');
-        textEl.textContent = t.addPhase || 'Add phase';
-        addPhase.append(iconEl, new Text(' '), textEl);
-        addPhase.disabled = block.phases.length >= Model.MAX_PHASES;
-        addPhase.addEventListener('click', () => {
-            markAsCustomIfBuiltin();
-            Model.addPhase(workingProtocol, block.id);
-            afterProtocolEdit();
-        });
-        body.appendChild(addPhase);
-        wireCardCollapse(card, block, t, body);
-        return card;
-    }
-
-    function renderRetentionCard(block, index, t) {
-        const card = document.createElement('div');
-        card.className = 'block-card is-retention';
-        const header = document.createElement('div');
-        header.className = 'block-card-header';
-        const title = stepTitle(index, t.holdBlock || 'Hold', t);
-        header.append(title, renderBlockActions(block, index, t));
-        card.appendChild(header);
-
-        const body = document.createElement('div');
-        const row = document.createElement('div');
-        row.className = 'row g-3';
-
-        const col1 = document.createElement('div');
-        col1.className = 'col-6';
-        const label1 = document.createElement('label');
-        label1.className = 'form-label small';
-        label1.textContent = t.holdDuration || 'Hold (s)';
-        col1.appendChild(label1);
-
-        const col2 = document.createElement('div');
-        col2.className = 'col-6';
-        const label2 = document.createElement('label');
-        label2.className = 'form-label small';
-        label2.textContent = t.holdIncrease || 'Increase each round (s)';
-        col2.appendChild(label2);
-
-        row.append(col1, col2);
-
-        const durationInput = document.createElement('input');
-        durationInput.type = 'number';
-        durationInput.className = 'form-control shadow-sm custom-input';
-        durationInput.min = '0';
-        durationInput.max = '180';
-        durationInput.value = block.duration;
-        durationInput.setAttribute('aria-label', t.holdDuration || 'Hold (s)');
-        const increaseInput = document.createElement('input');
-        increaseInput.type = 'number';
-        increaseInput.className = 'form-control shadow-sm custom-input';
-        increaseInput.min = '0';
-        increaseInput.max = '60';
-        increaseInput.value = block.increasePerRound;
-        increaseInput.setAttribute('aria-label', t.holdIncrease || 'Increase each round (s)');
-
-        const apply = (rerender) => {
-            markAsCustomIfBuiltin();
-            Model.setRetention(workingProtocol, block.id, {
-                duration: durationInput.value,
-                increasePerRound: increaseInput.value
-            });
-            afterProtocolEdit(rerender);
-        };
-        durationInput.addEventListener('input', () => apply(false));
-        increaseInput.addEventListener('input', () => apply(false));
-        durationInput.addEventListener('change', () => {
-            durationInput.value = Math.min(180, Math.max(0, Number(durationInput.value) || 0));
-            apply(true);
-        });
-        increaseInput.addEventListener('change', () => {
-            increaseInput.value = Math.min(60, Math.max(0, Number(increaseInput.value) || 0));
-            apply(true);
-        });
-
-        row.children[0].appendChild(durationInput);
-        row.children[1].appendChild(increaseInput);
-        body.appendChild(row);
-        wireCardCollapse(card, block, t, body);
-        return card;
-    }
-
-    function renderRefCard(block, index, t) {
-        const nested = Model.resolveRef(block);
-        const card = document.createElement('div');
-        card.className = 'block-card is-ref';
-        const header = document.createElement('div');
-        header.className = 'block-card-header';
-        const sourceName = nested
-            ? ((nested.nameKey && t[nested.nameKey]) || nested.name)
-            : block.protocolId;
-        const title = stepTitle(index, (t.includesExercise || t.usesExercise || 'Includes {name}').replace('{name}', sourceName), t);
-        const badge = document.createElement('span');
-        badge.className = 'inherited-badge';
-        badge.textContent = t.buildingBlock || t.linked || 'Building block';
-        title.appendChild(badge);
-        header.append(title, renderBlockActions(block, index, t));
-        card.appendChild(header);
-
-        const body = document.createElement('div');
-        const hint = document.createElement('p');
-        hint.className = 'linked-hint';
-        hint.textContent = (t.linkedHint || '{name} is a separate exercise. This protocol includes it as this step.')
-            .replace('{name}', sourceName);
-        body.appendChild(hint);
-        body.appendChild(renderLinkedPreview(nested, t));
-
-        const detach = document.createElement('button');
-        detach.type = 'button';
-        detach.className = 'btn guide-button w-100';
-        detach.textContent = t.makeLocalCopy || t.detach || 'Make a local copy';
-        detach.addEventListener('click', () => {
-            markAsCustomIfBuiltin();
-            Model.detachRef(workingProtocol, block.id);
-            afterProtocolEdit();
-        });
-        body.appendChild(detach);
-        wireCardCollapse(card, block, t, body);
-        return card;
-    }
-
-    function refreshLibrarySelect() {
-        const t = translations[currentLanguage] || {};
-        const select = elements.addLibraryBlockSelect;
-        const items = Model.listInsertableProtocols(workingProtocol);
-        select.replaceChildren();
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = t.fromLibrary || 'From library…';
-        select.appendChild(placeholder);
-
-        const groups = {
-            piece: t.piecesGroup || 'Building blocks',
-            builtin: t.builtinsGroup || 'Built-in',
-            user: t.myExercises || 'My exercises'
-        };
-        Object.entries(groups).forEach(([group, label]) => {
-            const matches = items.filter(item => item.group === group);
-            if (!matches.length) return;
-            const optgroup = document.createElement('optgroup');
-            optgroup.label = label;
-            matches.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.id;
-                option.textContent = (item.nameKey && t[item.nameKey]) || item.name;
-                optgroup.appendChild(option);
-            });
-            select.appendChild(optgroup);
-        });
-        select.disabled = items.length === 0 || workingProtocol.blocks.length >= Model.MAX_BLOCKS;
-    }
-
-    function outlineLabelFor(block, t) {
-        if (block.type === 'retention') return t.holdBlock || 'Hold';
-        if (block.type === 'ref') {
-            const nested = Model.resolveRef(block);
-            return nested ? protocolDisplayName(nested) : block.protocolId;
-        }
-        return t.patternBlock || 'Pattern';
-    }
-
-    function renderProtocolOutline(t) {
-        if (workingProtocol.blocks.length < 2 && !workingProtocol.blocks.some(block => block.type === 'ref')) {
-            return null;
-        }
-        const wrap = document.createElement('div');
-        wrap.className = 'protocol-outline';
-        const label = document.createElement('div');
-        label.className = 'protocol-outline-label';
-        label.textContent = t.protocolOutline || 'This protocol runs, in order:';
-        const list = document.createElement('ol');
-        list.className = 'protocol-outline-list';
-        workingProtocol.blocks.forEach(block => {
-            const item = document.createElement('li');
-            item.textContent = outlineLabelFor(block, t);
-            if (block.type === 'ref') {
-                const mark = document.createElement('span');
-                mark.className = 'outline-linked';
-                mark.textContent = t.buildingBlock || 'Building block';
-                item.appendChild(mark);
-            }
-            list.appendChild(item);
-        });
-        wrap.append(label, list);
-        return wrap;
-    }
-
-    function renderProtocolEditor() {
-        const t = translations[currentLanguage] || {};
-        elements.blockList.replaceChildren();
-        elements.protocolRoundsInput.value = workingProtocol.rounds;
-        const outline = renderProtocolOutline(t);
-        if (outline) elements.blockList.appendChild(outline);
-        workingProtocol.blocks.forEach((block, index) => {
-            if (index > 0) {
-                const then = document.createElement('div');
-                then.className = 'block-then';
-                then.textContent = t.then || 'Then';
-                elements.blockList.appendChild(then);
-            }
-            if (block.type === 'retention') {
-                elements.blockList.appendChild(renderRetentionCard(block, index, t));
-            } else if (block.type === 'ref') {
-                elements.blockList.appendChild(renderRefCard(block, index, t));
-            } else {
-                elements.blockList.appendChild(renderPatternCard(block, index, t));
-            }
-        });
-
-        const atLimit = workingProtocol.blocks.length >= Model.MAX_BLOCKS;
-        elements.addPatternBlockButton.disabled = atLimit;
-        elements.addRetentionBlockButton.disabled = atLimit;
-        refreshLibrarySelect();
-
-        const isUserExercise = !workingProtocol.builtin && !Model.PRESET_IDS.includes(selectedProtocolId);
-        elements.deleteExerciseButton.classList.toggle('d-none', !isUserExercise);
-        if (!isUserExercise && Model.PRESET_IDS.includes(selectedProtocolId)) {
-            elements.exerciseNameInput.value = '';
-        } else if (isUserExercise) {
-            elements.exerciseNameInput.value = workingProtocol.name;
-        }
-    }
 
     function markAsCustomIfBuiltin() {
         if (selectedProtocolId !== 'custom' && Model.PRESET_IDS.includes(selectedProtocolId)) {
@@ -1673,12 +676,12 @@ document.addEventListener('DOMContentLoaded', () => {
         cachedVisualPhasesProtocol = null; // Invalidate cache
         sessionCompleted = false;
         elements.visualizerWrapper.classList.remove('session-complete');
-        if (rerender) renderProtocolEditor();
+        if (rerender) protocolEditor.render();
         syncPracticeSummary();
         updateTotalTime();
         updateRemainingCycles();
         savePreferences();
-        if (!isRunning) drawFrame(null, 0, performance.now());
+        if (!isRunning) visualizer.drawFrame(null, 0, performance.now());
     }
 
     function translatePage() {
@@ -1703,11 +706,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (translation) element.title = translation;
         });
 
-        refreshPresetSelect();
+        exerciseChooser.refreshPresetSelect();
         const description = presetDescriptions[currentLanguage]?.[selectedProtocolId]
             || (workingProtocol.builtin ? '' : workingProtocol.name);
         document.getElementById('preset-description').textContent = description;
-        renderProtocolEditor();
+        protocolEditor.render();
         syncPracticeSummary();
         updateTotalTime();
         updateRemainingCycles();
@@ -1750,7 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function syncPresetUi() {
-        renderProtocolEditor();
+        protocolEditor.render();
         syncPracticeSummary();
     }
 
@@ -1763,7 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
         syncPresetUi();
         translatePage();
         savePreferences();
-        if (!isRunning) drawFrame(null, 0, performance.now());
+        if (!isRunning) visualizer.drawFrame(null, 0, performance.now());
     }
 
     function loadPreferences() {
@@ -1813,7 +816,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.primaryColorInput) {
             elements.primaryColorInput.value = customAccentColor;
         }
-        refreshPresetSelect();
+        exerciseChooser.refreshPresetSelect();
         elements.presetSelect.value = [...elements.presetSelect.options].some(option => option.value === selectedProtocolId)
             ? selectedProtocolId
             : 'custom';
@@ -1855,7 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const applyPickedColor = (event) => {
-        const nextColor = normalizeHex(event.target.value);
+        const nextColor = Theme.normalizeHex(event.target.value);
         if (!nextColor) return;
         customAccentColor = nextColor;
         applyPrimaryColor(customAccentColor);
@@ -1913,7 +916,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         workingProtocol = Model.cloneProtocol(saved);
         selectedProtocolId = saved.id;
-        refreshPresetSelect();
+        exerciseChooser.refreshPresetSelect();
         elements.presetSelect.value = saved.id;
         syncPresetUi();
         document.getElementById('preset-description').textContent = saved.name;
@@ -1985,8 +988,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('resize', () => {
-        resizeCanvas();
-        if(!isRunning) drawFrame(null, 0, performance.now());
+        visualizer.resizeCanvas();
+        if(!isRunning) visualizer.drawFrame(null, 0, performance.now());
     });
 
     function initialize() {
@@ -2004,52 +1007,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elements.volumeControl.style.setProperty('--range-progress', `${elements.volumeControl.value * 100}%`);
         
-        resizeCanvas();
+        visualizer.resizeCanvas();
         if ('ResizeObserver' in window) {
             visualizerResizeObserver = new ResizeObserver(() => {
-                resizeCanvas();
-                if (!isRunning) drawFrame(null, 0, performance.now());
+                visualizer.resizeCanvas();
+                if (!isRunning) visualizer.drawFrame(null, 0, performance.now());
             });
             visualizerResizeObserver.observe(elements.visualizerWrapper);
         }
         animationFrameId = requestAnimationFrame(renderLoop);
     }
 
-    if (elements.exerciseChooserButton) {
-        elements.exerciseChooserButton.addEventListener('click', (event) => {
-            event.stopPropagation();
-            const open = elements.exerciseChooserButton.getAttribute('aria-expanded') === 'true';
-            setExerciseChooserOpen(!open);
-            if (!open) {
-                const options = exerciseChooserOptions();
-                const selectedIndex = options.findIndex(option => option.getAttribute('aria-selected') === 'true');
-                focusExerciseOption(selectedIndex >= 0 ? selectedIndex : 0);
-            }
-        });
-        elements.exerciseChooserButton.addEventListener('keydown', event => {
-            if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-            event.preventDefault();
-            setExerciseChooserOpen(true);
-            const options = exerciseChooserOptions();
-            const selectedIndex = options.findIndex(option => option.getAttribute('aria-selected') === 'true');
-            const baseIndex = selectedIndex >= 0 ? selectedIndex : 0;
-            focusExerciseOption(UiUtils.chooserIndex(baseIndex, options.length, event.key));
-        });
-        document.addEventListener('click', (event) => {
-            const chooser = elements.exerciseChooserButton.closest('.practice-chooser');
-            if (chooser && event.target instanceof Element && chooser.contains(event.target)) return;
-            setExerciseChooserOpen(false);
-        });
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && elements.exerciseChooserButton.getAttribute('aria-expanded') === 'true') {
-                closeExerciseChooser(true);
-            }
-        });
-    }
+    exerciseChooser.bind();
 
     elements.selectedPresetInfo?.addEventListener('click', (event) => {
         event.stopPropagation();
-        closeExerciseChooser(false);
+        exerciseChooser.closeExerciseChooser(false);
         openPresetGuide(selectedProtocolId);
     });
 

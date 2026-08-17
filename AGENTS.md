@@ -34,7 +34,11 @@ behavior, or media playback.
 | --- | --- |
 | `index.html` | Application shell, controls, settings drawers, and script order |
 | `styles.css` | Theme, layout, component states, and responsive behavior |
-| `script.js` | Main controller: timer, canvas, UI events, i18n, and orchestration |
+| `script.js` | Main controller: timer, session UI, i18n, and orchestration |
+| `theme.js` | Accent palette math and CSS custom-property application |
+| `visualizer.js` | Canvas orb geometry and frame drawing |
+| `protocol-editor.js` | Protocol block-card rendering |
+| `exercise-chooser.js` | Preset select and home exercise listbox |
 | `model.js` | Protocol/block model, built-ins, session traversal, and duration calculations |
 | `voice.js` | Prerecorded cue playback, cancellation, volume, and TTS fallback |
 | `storage.js` | Defensive `localStorage` access |
@@ -45,7 +49,7 @@ behavior, or media playback.
 | `sw.js` | Offline precache and runtime cache behavior |
 | `audio/voice/` | Localized prerecorded audio assets |
 | `vendor/howler/` | Pinned Howler audio runtime and MIT license |
-| `tests/` | Node test suite for model, storage, UI, guide, version, and audio behavior |
+| `tests/` | Node test suite for model, storage, UI, guide, version, theme, visualizer, and audio behavior |
 | `docs/README.md` | Maintained logic diagrams and runtime-flow documentation |
 | `VERSIONING.md` | Semantic-versioning and release procedure |
 

@@ -19,9 +19,13 @@ flowchart TD
     B --> B6[howler.core.min.js → mobile-safe audio engine]
     B --> B7[voice.js → BreathingVoice]
     B --> B8[model.js → BreathingModel]
-    B --> B9[script.js main controller]
+    B --> B9[theme.js → BreathingTheme]
+    B --> B10[visualizer.js → BreathingVisualizer]
+    B --> B11[protocol-editor.js → BreathingProtocolEditor]
+    B --> B12[exercise-chooser.js → BreathingExerciseChooser]
+    B --> B13[script.js main controller]
 
-    B9 --> C[DOMContentLoaded]
+    B13 --> C[DOMContentLoaded]
     C --> D[Find DOM elements]
     D --> E[Load preferences from localStorage]
     E --> F[Load selected protocol / theme / language / audio mode / volume]
@@ -80,6 +84,18 @@ flowchart TD
     K -->|Navigation bar or rail| AL["Home, Protocols, Profile, or Settings"]
     AL --> K
 ```
+
+There is still no bundler. Each file is a same-origin `<script>` that assigns a
+`window.BreathingX` global, the same pattern as `model.js` and `voice.js`.
+`theme.js` owns palette math and writes CSS custom properties.
+`visualizer.js` owns orb geometry and canvas frames; it reads running/session
+state through getters so the timer engine stays in `script.js`.
+`protocol-editor.js` and `exercise-chooser.js` own DOM construction and call
+back into the controller after edits or selection. Palette math and vertex
+geometry are unit-tested in Node; the two DOM modules are organized the same
+way as `Voice.createVoiceGuide` but still need a browser to assert rendered
+output. All four files are in the service-worker precache so offline sessions
+keep the extracted scripts.
 
 The shell follows Material 3 Expressive scaffold: a tinted top app bar, a
 content pane with margin/gutter spacing, and one navigation region. Below 840px
@@ -185,16 +201,18 @@ flowchart TD
     E --> F[Create canvas context]
 
     F --> G[Initialize state variables]
-    G --> H[Build voice guide]
+    G --> G1[Create visualizer, protocol editor, and exercise chooser factories]
+    G1 --> H[Build voice guide]
     H --> I[Define helper functions]
 
-    I --> I1[Color / palette helpers]
+    I --> I1[BreathingTheme palette helpers]
     I --> I2[Prompt transition helper]
-    I --> I3[Canvas resize + cached colors]
+    I --> I3[BreathingVisualizer canvas factory]
     I --> I4[Timer helpers]
-    I --> I5[Protocol editor helpers]
+    I --> I5[BreathingProtocolEditor factory]
     I --> I6[Translation helpers]
     I --> I7[Persistence helpers]
+    I --> I8[BreathingExerciseChooser factory]
 
     I --> J[Wire event listeners]
     J --> J1[Start / Pause / Stop buttons]
@@ -205,7 +223,7 @@ flowchart TD
     J --> J6[Language toggle in Settings]
     J --> J7[Keyboard shortcuts]
     J --> J8[Visibility + resize listeners]
-    J --> J9[Exercise chooser menu listeners]
+    J --> J9["exerciseChooser.bind()"]
 
     J --> K["initialize()"]
     K --> K1[Render version labels]
@@ -214,7 +232,7 @@ flowchart TD
     K3 --> K4["translatePage()"]
     K4 --> K5[Set control visibility]
     K5 --> K6[Set volume slider UI]
-    K6 --> K7["resizeCanvas()"]
+    K6 --> K7["visualizer.resizeCanvas()"]
     K7 --> K8[Attach ResizeObserver]
     K8 --> K9["Start renderLoop()"]
 
@@ -270,7 +288,7 @@ flowchart TD
     AJ[Edit protocol] --> AK[Model update call]
     AK --> AL["afterProtocolEdit()"]
     AL --> AL1[Invalidate cached visual phases]
-    AL1 --> AL2[Re-render editor if needed]
+    AL1 --> AL2["protocolEditor.render if needed"]
     AL2 --> AL3["syncPracticeSummary()"]
     AL3 --> AL4["updateTotalTime()"]
     AL4 --> AL5["updateRemainingCycles()"]
@@ -281,7 +299,7 @@ flowchart TD
 
     AN[Load preferences] --> AO["Storage.readJSON()"]
     AO --> AP[Restore protocol/theme/language/audio mode/volume/colors]
-    AP --> AQ["applyPrimaryColor()"]
+    AP --> AQ["Theme.applyPrimaryColor + swatch/canvas glue"]
     AQ --> AR["refreshPresetSelect()"]
     AR --> AS["syncPresetUi()"]
     AS --> AT["translatePage()"]

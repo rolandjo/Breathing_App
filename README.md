@@ -79,7 +79,11 @@ Open `index.html` directly if you only need a quick look; install-as-app and off
 | --- | --- |
 | `index.html` | App shell: home, navigation bar/rail, settings sheets, protocol editor |
 | `styles.css` | Theme and layout |
-| `script.js` | Timer, canvas, settings, i18n |
+| `script.js` | Timer, session UI, settings, i18n |
+| `theme.js` | Accent palette math and CSS custom properties |
+| `visualizer.js` | Canvas orb geometry and frame drawing |
+| `protocol-editor.js` | Protocol block-card rendering |
+| `exercise-chooser.js` | Preset select and home exercise listbox |
 | `model.js` | Protocols, blocks, library, session timeline |
 | `storage.js` | Defensive browser persistence |
 | `ui-utils.js` | Pure UI formatting and keyboard-navigation helpers |
@@ -95,6 +99,9 @@ Open `index.html` directly if you only need a quick look; install-as-app and off
 Preferences live in `breathingTimerPreferences`. Saved exercises live in `breathingTimerLibrary`.
 
 Howler 2.2.4 is vendored under `vendor/howler/` and loaded before `voice.js`.
+`theme.js`, `visualizer.js`, `protocol-editor.js`, and `exercise-chooser.js`
+load after `model.js` and before `script.js`. There is no bundler; each file
+exposes a `window.BreathingX` global.
 Recorded cues first use Web Audio and retry once with Howler's reusable HTML5
 audio pool. The independent bowl fallback is silently primed by the initial
 Start gesture for Android compatibility. Howler, the recordings, and the bowl

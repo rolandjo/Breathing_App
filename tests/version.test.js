@@ -44,12 +44,17 @@ test('every local service-worker precache URL exists', () => {
     }
 });
 
-test('translations and Howler are loaded before their consumers', () => {
+test('translations, Howler, and extracted modules load before their consumers', () => {
     const index = readProjectFile('index.html');
     const englishPosition = index.indexOf('translations/english.js');
     const translationManagerPosition = index.indexOf('translation-manager.js');
     const howlerPosition = index.indexOf('vendor/howler/howler.core.min.js');
     const voicePosition = index.indexOf('voice.js');
+    const modelPosition = index.indexOf('model.js');
+    const themePosition = index.indexOf('theme.js');
+    const visualizerPosition = index.indexOf('visualizer.js');
+    const protocolEditorPosition = index.indexOf('protocol-editor.js');
+    const exerciseChooserPosition = index.indexOf('exercise-chooser.js');
     const scriptPosition = index.indexOf('script.js');
 
     assert.notEqual(englishPosition, -1);
@@ -60,6 +65,11 @@ test('translations and Howler are loaded before their consumers', () => {
     assert.ok(translationManagerPosition < voicePosition);
     assert.ok(howlerPosition < voicePosition);
     assert.ok(translationManagerPosition < scriptPosition);
+    assert.ok(modelPosition < themePosition);
+    assert.ok(themePosition < visualizerPosition);
+    assert.ok(visualizerPosition < protocolEditorPosition);
+    assert.ok(protocolEditorPosition < exerciseChooserPosition);
+    assert.ok(exerciseChooserPosition < scriptPosition);
 });
 
 test('version is shown at the bottom of both settings drawers', () => {
